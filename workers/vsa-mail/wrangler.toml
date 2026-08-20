@@ -1,0 +1,8 @@
+name = "vsa-mail"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+# After deploy, set secrets (no Gmail forward):
+#   npx wrangler secret put MAIL_INBOUND_SECRET
+#   npx wrangler secret put MAIL_INBOUND_URL
+# MAIL_INBOUND_URL example: https://www.auburnvsa.com/api/mail-inbound.php

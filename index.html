@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Join Auburn VSA — open to every Auburn student. Meetings, ACE mentorship, cultural events, and Auburn Royale. Register free on AUinvolve.">
+    <title>Auburn VSA | Vietnamese Student Association</title>
+    <meta name="application-name" content="Auburn VSA">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Auburn VSA">
+    <meta property="og:title" content="Auburn VSA | Vietnamese Student Association">
+    <meta property="og:description" content="Join Auburn VSA — open to every Auburn student. Meetings, ACE mentorship, cultural events, and Auburn Royale. Register free on AUinvolve.">
+    <meta property="og:image" content="https://www.auburnvsa.com/uploads/20260718012849-aa5e521c7f.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Auburn VSA | Vietnamese Student Association">
+    <meta name="twitter:description" content="Join Auburn VSA — open to every Auburn student. Meetings, ACE mentorship, cultural events, and Auburn Royale. Register free on AUinvolve.">
+    <meta name="twitter:image" content="https://www.auburnvsa.com/uploads/20260718012849-aa5e521c7f.png">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#ff811d">
+    <link rel="canonical" href="https://www.auburnvsa.com/">
+    <link rel="manifest" href="site.webmanifest">
+    <link rel="apple-touch-icon" href="https://www.auburnvsa.com/uploads/20260718012849-aa5e521c7f.png">
+    <link rel="icon" href="https://www.auburnvsa.com/uploads/20260718012849-aa5e521c7f.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="preload" as="image" href="uploads/20260717031137-826685922b.jpg" fetchpriority="high">
+    <script>
+    (function () {
+      try {
+        var k = "vsa-theme";
+        var p = localStorage.getItem(k);
+        if (p !== "light" && p !== "dark" && p !== "system") p = "light";
+        var dark = p === "dark" || (p === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme-pref", p);
+      } catch (e) {}
+      /* Holiday boot before paint — avoids orange flash (HOLIDAY_THEMES) */
+      try {
+        var pref = localStorage.getItem("vsa-holiday-pref") || "auto";
+        pref = String(pref).toLowerCase().trim();
+        var allowed = { halloween: 1, christmas: 1, july4: 1, valentines: 1, newyear: 1, stpatricks: 1 };
+        var theme = "";
+        if (pref === "off") theme = "";
+        else if (allowed[pref]) theme = pref;
+        else {
+          var d = new Date();
+          var md = (d.getMonth() + 1) * 100 + d.getDate();
+          if (md >= 207 && md <= 215) theme = "valentines";
+          else if (md >= 120 && md <= 228) theme = "newyear";
+          else if (md >= 310 && md <= 318) theme = "stpatricks";
+          else if (md >= 628 && md <= 706) theme = "july4";
+          else if (md >= 1015 && md <= 1102) theme = "halloween";
+          else if (md >= 1201 && md <= 1227) theme = "christmas";
+        }
+        if (!theme) {
+          document.documentElement.removeAttribute("data-holiday");
+          document.documentElement.style.removeProperty("--holiday-mark");
+        } else {
+          document.documentElement.setAttribute("data-holiday", theme);
+          if (theme === "newyear") {
+            var now = new Date();
+            var y = now.getFullYear();
+            var md = (now.getMonth() + 1) * 100 + now.getDate();
+            var cny = { 2024: 210, 2025: 129, 2026: 217, 2027: 206, 2028: 126, 2029: 213, 2030: 203, 2031: 123, 2032: 211, 2033: 131, 2034: 219, 2035: 208, 2036: 128, 2037: 215, 2038: 204, 2039: 124, 2040: 212, 2041: 201, 2042: 122, 2043: 210, 2044: 130, 2045: 217, 2046: 206, 2047: 126, 2048: 214, 2049: 202, 2050: 123 };
+            var cnyMd = cny[y];
+            if (cnyMd != null ? md < cnyMd : md < 204) y = y - 1;
+            var animals = ["\uD83D\uDC00", "\uD83D\uDC02", "\uD83D\uDC05", "\uD83D\uDC07", "\uD83D\uDC09", "\uD83D\uDC0D", "\uD83D\uDC0E", "\uD83D\uDC10", "\uD83D\uDC12", "\uD83D\uDC13", "\uD83D\uDC15", "\uD83D\uDC16"];
+            var idx = (y - 4) % 12;
+            if (idx < 0) idx += 12;
+            var mark = "\uD83E\uDDE7 " + y + " " + animals[idx];
+            try { if (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) mark = "\uD83E\uDDE7 " + animals[idx]; } catch (e3) {}
+            document.documentElement.style.setProperty("--holiday-mark", JSON.stringify(mark));
+          } else {
+            document.documentElement.style.removeProperty("--holiday-mark");
+          }
+        }
+      } catch (e2) {}
+    })();
+    </script>
+    <link rel="stylesheet" href="assets/css/styles.css?v=20260818b">
+</head>
+<body data-page="home" data-nav="home">
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <div class="topbar">
+        <div class="container topbar-inner">
+            <span><strong data-contact-email-label>Email:</strong> <span data-bind="site.email"></span></span>
+            <span><strong data-contact-phone-label>Phone:</strong> <span data-bind="site.phone"></span></span>
+        </div>
+    </div>
+
+    <header class="site-header">
+        <div class="container header-inner">
+            <a href="./" class="brand">
+                <span class="brand-logo"><img data-bind-src="branding.logo" src="uploads/20260718012849-aa5e521c7f.png" alt="Auburn VSA logo"></span>
+                <span class="brand-text">
+                    <span class="brand-name" data-bind="site.orgName">Vietnamese Student Association</span>
+                    <span class="brand-uni" data-bind="site.university">Auburn University</span>
+                </span>
+            </a>
+
+            <nav class="nav-desktop">
+                <a href="./" class="nav-link active" data-nav="home">Home</a>
+                <div class="dropdown">
+                    <button type="button" class="nav-link dropdown-toggle" data-nav="about" aria-expanded="false" aria-haspopup="true">
+                        About
+                        <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="dropdown-menu">
+                        <a href="executive-board">Executive Board</a>
+                        <a href="au-royale-directors">AU Royale Directors</a>
+                        <a href="tech-team">Tech Team</a>
+                    </div>
+                </div>
+                <a href="events" class="nav-link" data-nav="events">Events</a>
+                <a href="au-royale" class="nav-link" data-nav="royale">AU Royale</a>
+                <a href="gallery" class="nav-link" data-nav="gallery">Gallery</a>
+                <a href="merch" class="nav-link" data-nav="merch">Merch</a>
+                <a href="faqs" class="nav-link" data-nav="faqs">FAQs</a>
+            </nav>
+
+            <div class="header-tools">
+                <button type="button" class="theme-toggle" id="theme-toggle" data-pref="light" aria-label="Color theme: Light. Click for Dark." aria-pressed="false" title="Theme: Light">
+                    <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke-linecap="round"/></svg>
+                    <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <svg class="theme-icon theme-icon-system" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4" stroke-linecap="round"/></svg>
+                </button>
+                <button id="mobile-menu-button" class="mobile-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <nav id="mobile-menu" class="nav-mobile hidden">
+            <div class="nav-mobile-group">
+                <a href="./" data-nav="home">Home</a>
+            </div>
+            <div class="nav-mobile-group">
+                <a href="executive-board" data-nav="about">About</a>
+                <div class="nav-mobile-children">
+                    <a href="executive-board">Executive Board</a>
+                    <a href="au-royale-directors">AU Royale Directors</a>
+                    <a href="tech-team">Tech Team</a>
+                </div>
+            </div>
+            <div class="nav-mobile-group"><a href="events" data-nav="events">Events</a></div>
+            <div class="nav-mobile-group"><a href="au-royale" data-nav="royale">AU Royale</a></div>
+            <div class="nav-mobile-group"><a href="gallery" data-nav="gallery">Gallery</a></div>
+            <div class="nav-mobile-group"><a href="merch" data-nav="merch">Merch</a></div>
+            <div class="nav-mobile-group"><a href="faqs" data-nav="faqs">FAQs</a></div>
+        </nav>
+    </header>
+
+    <main id="main">
+        <section class="next-up-strip is-empty" id="next-up" aria-label="Next up">
+            <div class="container next-up-inner">
+                <div class="next-up-copy">
+                    <span class="next-up-label" id="next-up-label">Next up</span>
+                    <strong class="next-up-title" id="next-up-title">Loading upcoming event…</strong>
+                    <span class="next-up-meta" id="next-up-meta"></span>
+                </div>
+                <div class="next-up-actions" id="next-up-actions">
+                    <button type="button" class="btn btn-orange sm" id="next-up-details">Event details</button>
+                    <a class="btn btn-outline-navy sm" id="next-up-gcal" href="events" target="_blank" rel="noopener noreferrer">Add to Google Calendar</a>
+                    <button type="button" class="btn btn-outline-navy sm" id="next-up-ics">Download .ics</button>
+                </div>
+                <button type="button" class="next-up-toggle" id="next-up-toggle" aria-expanded="true" aria-controls="next-up-actions next-up-meta" aria-label="Hide next up details">
+                    <span class="next-up-toggle-chevron" aria-hidden="true"></span>
+                </button>
+            </div>
+        </section>
+
+        <section class="recent-banner">
+            <div class="container">
+                <div id="home-recent" class="recent-showcase" aria-busy="true"></div>
+            </div>
+        </section>
+
+        <section class="home-hero-wrap home-hero-bleed">
+            <div class="container">
+                <div class="home-hero-intro" id="home-hero-intro">
+                    <p class="home-hero-welcome" id="home-hero-welcome">Welcome to Auburn VSA</p>
+                    <h1 class="home-hero-title" id="home-hero-title">Auburn VSA</h1>
+                    <p class="home-hero-brief" id="home-hero-brief">Vietnamese Student Association at Auburn University — culture, friendship, and community through meetings, ACE mentorship, and Auburn Royale.</p>
+                    <div class="home-hero-actions">
+                        <a href="https://auburn.campuslabs.com/engage/organization/vsa" class="btn btn-orange" id="home-hero-join" target="_blank" rel="noopener noreferrer">Join VSA on AUinvolve</a>
+                        <a href="https://www.instagram.com/auburnvsa" class="btn btn-outline-navy" id="home-hero-ig" target="_blank" rel="noopener noreferrer">Follow on Instagram</a>
+                    </div>
+                    <p class="home-join-path" id="home-join-path">Join free on AUinvolve → follow @auburnvsa → come to a meeting. Everyone’s welcome.</p>
+                </div>
+                <div class="home-hero-inner" id="home-hero">
+                    <img
+                        src="uploads/20260717031137-826685922b.jpg"
+                        alt="Auburn VSA group photo"
+                        class="ph-img w-full home-hero-img"
+                        width="2560"
+                        height="1120"
+                        loading="eager"
+                        fetchpriority="high"
+                        decoding="async"
+                    >
+                </div>
+            </div>
+        </section>
+
+        <section class="band-mist section">
+            <div class="container">
+                <div class="two-col">
+                    <div class="about-copy">
+                        <h2 class="heading" id="home-about-heading"><span class="text-navy">About </span><span class="text-orange">Auburn VSA</span></h2>
+                        <p class="lead mt-4" id="home-about"></p>
+                        <div class="about-actions mt-6">
+                            <a href="https://auburn.campuslabs.com/engage/organization/vsa" class="btn btn-orange" id="home-about-join" target="_blank" rel="noopener noreferrer">Join on AUinvolve</a>
+                            <a href="executive-board" class="btn btn-outline-navy" id="home-learn-more">Meet the Executive Board</a>
+                        </div>
+                    </div>
+                    <div class="about-card">
+                        <div id="home-gallery" class="org-showcase"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="whyjoin-band">
+            <div class="container">
+                <h2 class="heading whyjoin-heading" id="home-whyjoin-heading"><span class="text-navy">Why </span><span class="text-orange">Join VSA</span><span class="text-navy">?</span></h2>
+                <div class="whyjoin-cols" id="home-whyjoin-cols"></div>
+                <div class="whyjoin-imgs" id="home-whyjoin-imgs"></div>
+                <div class="whyjoin-cta center">
+                    <a href="https://auburn.campuslabs.com/engage/organization/vsa" class="btn btn-orange" id="home-whyjoin-join" target="_blank" rel="noopener noreferrer">Join on AUinvolve</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="section how-to-join-band" id="home-howto-section">
+            <div class="container">
+                <h2 class="heading center" id="home-howto-heading"><span class="text-navy">How to </span><span class="text-orange">join</span></h2>
+                <ol class="how-to-join-steps" id="home-howto-steps"></ol>
+                <div class="center how-to-join-cta">
+                    <a href="https://auburn.campuslabs.com/engage/organization/vsa" class="btn btn-orange" id="home-howto-join" target="_blank" rel="noopener noreferrer">Join Now on AUinvolve</a>
+                    <a href="faqs" class="btn btn-outline-navy" id="home-howto-faqs">More FAQs</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="band-mist section hidden" id="home-instagram-section">
+            <div class="container">
+                <h2 class="heading" id="home-instagram-heading"><span class="text-navy">Latest from </span><span class="text-orange">@auburnvsa</span></h2>
+                <p class="muted mt-2 center" style="font-size:0.95rem;" id="home-instagram-subtext">Photos and posts curated from Instagram — tap to open on Instagram.</p>
+                <div class="ig-grid mt-6" id="home-instagram"></div>
+                <div class="center mt-6">
+                    <a href="https://www.instagram.com/auburnvsa" class="btn btn-outline-navy" id="home-instagram-more" target="_blank" rel="noopener noreferrer">Open Instagram</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="section hidden" id="home-alumni-section">
+            <div class="container center">
+                <h2 class="heading" id="home-alumni-heading"><span class="text-navy">Where we are </span><span class="text-orange">now</span></h2>
+                <p class="muted mt-2" style="font-size:0.95rem;" id="home-alumni-subtext">Auburn VSA alumni — where Tiger trails lead.</p>
+            </div>
+            <div class="carousel alumni-carousel alumni-carousel-bleed mt-6" id="home-alumni-carousel">
+                <button class="carousel-arrow prev" aria-label="Previous alumni" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <div class="carousel-track" id="home-alumni"></div>
+                <button class="carousel-arrow next" aria-label="Next alumni" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+            </div>
+        </section>
+
+        <section class="cta-band">
+            <div class="cta">
+                <h2 id="home-cta-heading"><span class="text-navy">Find your </span><span class="text-orange">community</span><span class="text-navy">. Celebrate your </span><span class="text-orange">culture</span><span class="text-navy">. Make lasting </span><span class="text-orange">memories</span><span class="text-navy">.</span></h2>
+                <p class="lead mt-4" style="max-width:42rem;margin-left:auto;margin-right:auto;" id="home-cta-text"></p>
+                <div class="cta-actions">
+                    <a href="https://auburn.campuslabs.com/engage/organization/vsa" class="btn btn-orange" id="home-join" target="_blank" rel="noopener noreferrer">Join Now on AUinvolve</a>
+                    <a href="https://www.instagram.com/auburnvsa" class="btn btn-outline-light" id="home-join-ig" target="_blank" rel="noopener noreferrer">Follow @auburnvsa</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-grid">
+            <div>
+                <div class="footer-brand">
+                    <span class="brand-logo lg"><img data-bind-src="branding.logo" src="uploads/20260718012849-aa5e521c7f.png" alt="Auburn VSA logo"></span>
+                    <div>
+                        <p class="footer-org">Auburn <span data-bind="site.orgName">Vietnamese Student Association</span></p>
+                        <p class="footer-contact"><span data-contact-email-label>Email:</span> <span data-bind="site.email"></span></p>
+                        <p class="footer-contact"><span data-contact-phone-label>Phone:</span> <span data-bind="site.phone"></span></p>
+                    </div>
+                </div>
+                <p class="footer-tagline" data-bind="site.newsletterTagline"></p>
+                <ul class="socials" id="site-socials"></ul>
+            </div>
+
+            <div class="newsletter">
+                <h2>Sign Up for VSA Newsletters</h2>
+                <form data-newsletter>
+                    <label for="newsletter-email"><span data-newsletter-email-label>Email</span> <span class="req">*</span></label>
+                    <input id="newsletter-email" name="email" type="email" autocomplete="email" required placeholder="you@example.com">
+                    <button type="submit" class="btn btn-orange full">Subscribe</button>
+                    <p data-newsletter-msg class="newsletter-msg hidden"></p>
+                </form>
+            </div>
+        </div>
+        <div class="footer-legal">
+            <div class="container footer-legal-inner">
+                <p class="footer-copy">© <span data-year>2026</span> Auburn Vietnamese Student Association. All rights reserved.</p>
+                <p class="footer-legal-links"><a href="unsubscribe">Unsubscribe</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <div class="sticky-join hidden" id="sticky-join" hidden>
+        <a href="https://auburn.campuslabs.com/engage/organization/vsa" class="sticky-join-btn" id="sticky-join-link" target="_blank" rel="noopener noreferrer">Join VSA</a>
+        <button type="button" class="sticky-join-dismiss" id="sticky-join-dismiss" aria-label="Dismiss join bar">×</button>
+    </div>
+
+    <div class="event-sheet hidden" data-event-sheet aria-hidden="true">
+        <div class="event-sheet-backdrop" data-event-sheet-close tabindex="-1"></div>
+        <div class="event-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="event-sheet-title">
+            <header class="event-sheet-head">
+                <h2 id="event-sheet-title">Event</h2>
+                <button type="button" class="event-sheet-close" data-event-sheet-close aria-label="Close">&times;</button>
+            </header>
+            <div class="event-sheet-body" data-event-sheet-body></div>
+        </div>
+    </div>
+
+    <script defer src="assets/js/site.js?v=20260818b"></script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+# Auburn VSA — HTML-primary public site
+DirectoryIndex index.html index.php
+# If this line causes HTTP 500 on a locked-down host, comment it out
+# (some shared hosts disallow Options in .htaccess).
+Options -Indexes
+
+# Baseline hardening (Apache). PHP endpoints also send matching headers.
+# Cloudflare / tunnel terminates TLS; tell Apache so redirects stay https://
+<IfModule mod_setenvif.c>
+    SetEnvIf X-Forwarded-Proto "https" HTTPS=on
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+    Header set Cross-Origin-Opener-Policy "same-origin"
+    Header set X-Permitted-Cross-Domain-Policies "none"
+
+    # Content-Security-Policy for public HTML (inline boot scripts + Google Fonts + media embeds).
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; media-src 'self' https: blob:; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://calendar.google.com https://www.google.com; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'" "expr=%{CONTENT_TYPE} =~ m#text/html#i"
+
+    # HSTS over HTTPS only (Cloudflare terminates TLS → X-Forwarded-Proto sets HTTPS=on above).
+    # Matches what PHP send_security_headers() already emits, extended to static HTML/assets.
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+
+    # Reduce fingerprinting — drop PHP/server version hints on every response.
+    Header always unset X-Powered-By
+    Header unset X-Powered-By
+
+    # RFC 8288 / RFC 9727 — advertise api-catalog on HTML responses (incl. / → index.html)
+    Header always set Link "</.well-known/api-catalog>; rel=\"api-catalog\", </llms.txt>; rel=\"describedby\", </sitemap.xml>; rel=\"describedby\"" "expr=%{CONTENT_TYPE} =~ m#text/html#i"
+</IfModule>
+
+# Long cache for versioned static assets (?v=… busts when we change the query)
+<IfModule mod_headers.c>
+    <FilesMatch "\.(css|js)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
+
+# Compress text responses at the origin (Cloudflare also compresses at the edge;
+# this helps direct-origin hits and is a no-op if mod_deflate is absent).
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml \
+        application/javascript application/json application/xml \
+        application/rss+xml application/linkset+json image/svg+xml \
+        application/manifest+json text/csv
+</IfModule>
+
+# Deny common sensitive / backup footprints at the web root
+# (SITE-RECREATE.txt also lives under docs/ which is fully denied; name deny is belt-and-suspenders)
+<FilesMatch "(?i)^(\.env|\.git|\.gitignore|\.htpasswd|composer\.(json|lock)|package(-lock)?\.json|\.admin_password_hash|.*\.(bak|old|sql|sqlite|sqlite3|pem|key|p12|pfx)|AGENTS\.md|SITE-RECREATE\.txt|HANDOFF\.md)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Site root. Subdirectory hosting (e.g. https://auburn.edu/~vsa/): set to /~vsa/
+    RewriteBase /
+
+    # Force HTTPS in production. Comment out for local http:// dev without TLS.
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+    # Block TRACE/TRACK at the edge (PHP also rejects these).
+    RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK) [NC]
+    RewriteRule ^ - [F,L]
+
+    # Belt-and-suspenders: never serve ops/CLI/scratch/runtime trees even if a nested .htaccess is missing
+    RewriteRule ^(tools|docs|data|includes|workers)(/|$) - [F,L]
+
+    # Leave admin and API endpoints alone
+    RewriteRule ^(admin|api)/ - [L]
+
+    # Discovery endpoints
+    # robots.txt → PHP (absolute Sitemap URL). sitemap.xml is a static file at web root
+    # (rewrite to PHP was 500 via tunnel; sitemap.php still available as fallback).
+    RewriteRule ^robots\.txt$ robots.php [L]
+    RewriteRule ^\.well-known/api-catalog/?$ .well-known/api-catalog.php [L]
+    RewriteRule ^\.well-known/security\.txt$ .well-known/security.txt [L]
+
+    # External redirects: always emit an absolute URL scheme.
+    # Behind Cloudflare the origin often sees plain HTTP, so path-only R=301
+    # becomes Location: http://… even when the visitor used https:// (extra hop
+    # + “Page with redirect” noise in Search Console). Prefer https when the
+    # edge says so via X-Forwarded-Proto / HTTPS.
+
+    # Strip trailing slash on clean public paths — relative CSS/JS/API break on /page/.
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{THE_REQUEST} \s/+((?:[^?\s]+/)?)([a-z0-9\-]+)/\s [NC]
+    RewriteCond %{HTTPS} =on [OR]
+    RewriteCond %{HTTP:X-Forwarded-Proto} =https [NC]
+    RewriteRule ^ https://%{HTTP_HOST}/%1%2 [R=301,L]
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{THE_REQUEST} \s/+((?:[^?\s]+/)?)([a-z0-9\-]+)/\s [NC]
+    RewriteRule ^ http://%{HTTP_HOST}/%1%2 [R=301,L]
+
+    # Prefer extensionless URLs (canonical) — .html → clean path
+    RewriteCond %{THE_REQUEST} \s/+((?:[^?\s]+/)?)index\.html[\s?] [NC]
+    RewriteCond %{HTTPS} =on [OR]
+    RewriteCond %{HTTP:X-Forwarded-Proto} =https [NC]
+    RewriteRule ^ https://%{HTTP_HOST}/%1 [R=301,L]
+    RewriteCond %{THE_REQUEST} \s/+((?:[^?\s]+/)?)index\.html[\s?] [NC]
+    RewriteRule ^ http://%{HTTP_HOST}/%1 [R=301,L]
+
+    RewriteCond %{THE_REQUEST} \s/+((?:[^?\s]+/)?)([a-z0-9\-]+)\.html[\s?] [NC]
+    RewriteCond %{HTTPS} =on [OR]
+    RewriteCond %{HTTP:X-Forwarded-Proto} =https [NC]
+    RewriteRule ^ https://%{HTTP_HOST}/%1%2 [R=301,L]
+    RewriteCond %{THE_REQUEST} \s/+((?:[^?\s]+/)?)([a-z0-9\-]+)\.html[\s?] [NC]
+    RewriteRule ^ http://%{HTTP_HOST}/%1%2 [R=301,L]
+
+    # Clean public URLs → HTML files (internal rewrite; relative targets OK)
+    RewriteRule ^executive-board/?$ executive-board.html [L]
+    RewriteRule ^tech-team/?$ tech-team.html [L]
+    RewriteRule ^au-royale-directors/?$ au-royale-directors.html [L]
+    RewriteRule ^events/?$ events.html [L]
+    RewriteRule ^au-royale/?$ au-royale.html [L]
+    RewriteRule ^gallery/?$ gallery.html [L]
+    RewriteRule ^merch/?$ merch.html [L]
+    RewriteRule ^faqs/?$ faqs.html [L]
+    RewriteRule ^unsubscribe/?$ unsubscribe.html [L]
+
+    # Old public PHP URLs → clean HTML paths
+    # Guard with THE_REQUEST so DirectoryIndex / internal rewrites can't loop.
+    RewriteCond %{THE_REQUEST} \s/+((?:[^?\s]+/)?)index\.php[\s?] [NC]
+    RewriteCond %{HTTPS} =on [OR]
+    RewriteCond %{HTTP:X-Forwarded-Proto} =https [NC]
+    RewriteRule ^ https://%{HTTP_HOST}/%1 [R=301,L]
+    RewriteCond %{THE_REQUEST} \s/+((?:[^?\s]+/)?)index\.php[\s?] [NC]
+    RewriteRule ^ http://%{HTTP_HOST}/%1 [R=301,L]
+
+    RewriteCond %{THE_REQUEST} \s/+((?:[^?\s]+/)?)(executive-board|tech-team|au-royale-directors|events|au-royale|gallery|merch|faqs|unsubscribe)\.php[\s?] [NC]
+    RewriteCond %{HTTPS} =on [OR]
+    RewriteCond %{HTTP:X-Forwarded-Proto} =https [NC]
+    RewriteRule ^ https://%{HTTP_HOST}/%1%2 [R=301,L]
+    RewriteCond %{THE_REQUEST} \s/+((?:[^?\s]+/)?)(executive-board|tech-team|au-royale-directors|events|au-royale|gallery|merch|faqs|unsubscribe)\.php[\s?] [NC]
+    RewriteRule ^ http://%{HTTP_HOST}/%1%2 [R=301,L]
+</IfModule>

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Shop Auburn VSA merch — shirts, sweatshirts, stickers, and more from the Vietnamese Student Association at Auburn University.">
+    <title>Merch | Auburn VSA — Auburn University</title>
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Auburn VSA">
+    <meta property="og:title" content="Merch | Auburn VSA — Auburn University">
+    <meta property="og:description" content="Shop Auburn VSA merch — shirts, sweatshirts, stickers, and more from the Vietnamese Student Association at Auburn University.">
+    <meta property="og:image" content="https://www.auburnvsa.com/uploads/20260718012849-aa5e521c7f.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Merch | Auburn VSA — Auburn University">
+    <meta name="twitter:description" content="Shop Auburn VSA merch — shirts, sweatshirts, stickers, and more from the Vietnamese Student Association at Auburn University.">
+    <meta name="twitter:image" content="https://www.auburnvsa.com/uploads/20260718012849-aa5e521c7f.png">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#ff811d">
+    <link rel="canonical" href="https://www.auburnvsa.com/merch">
+    <link rel="manifest" href="site.webmanifest">
+    <link rel="apple-touch-icon" href="https://www.auburnvsa.com/uploads/20260718012849-aa5e521c7f.png">
+    <link rel="icon" href="https://www.auburnvsa.com/uploads/20260718012849-aa5e521c7f.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+    <script>
+    (function () {
+      try {
+        var k = "vsa-theme";
+        var p = localStorage.getItem(k);
+        if (p !== "light" && p !== "dark" && p !== "system") p = "light";
+        var dark = p === "dark" || (p === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme-pref", p);
+      } catch (e) {}
+      /* Holiday boot before paint — avoids orange flash (HOLIDAY_THEMES) */
+      try {
+        var pref = localStorage.getItem("vsa-holiday-pref") || "auto";
+        pref = String(pref).toLowerCase().trim();
+        var allowed = { halloween: 1, christmas: 1, july4: 1, valentines: 1, newyear: 1, stpatricks: 1 };
+        var theme = "";
+        if (pref === "off") theme = "";
+        else if (allowed[pref]) theme = pref;
+        else {
+          var d = new Date();
+          var md = (d.getMonth() + 1) * 100 + d.getDate();
+          if (md >= 207 && md <= 215) theme = "valentines";
+          else if (md >= 120 && md <= 228) theme = "newyear";
+          else if (md >= 310 && md <= 318) theme = "stpatricks";
+          else if (md >= 628 && md <= 706) theme = "july4";
+          else if (md >= 1015 && md <= 1102) theme = "halloween";
+          else if (md >= 1201 && md <= 1227) theme = "christmas";
+        }
+        if (!theme) {
+          document.documentElement.removeAttribute("data-holiday");
+          document.documentElement.style.removeProperty("--holiday-mark");
+        } else {
+          document.documentElement.setAttribute("data-holiday", theme);
+          if (theme === "newyear") {
+            var now = new Date();
+            var y = now.getFullYear();
+            var md = (now.getMonth() + 1) * 100 + now.getDate();
+            var cny = { 2024: 210, 2025: 129, 2026: 217, 2027: 206, 2028: 126, 2029: 213, 2030: 203, 2031: 123, 2032: 211, 2033: 131, 2034: 219, 2035: 208, 2036: 128, 2037: 215, 2038: 204, 2039: 124, 2040: 212, 2041: 201, 2042: 122, 2043: 210, 2044: 130, 2045: 217, 2046: 206, 2047: 126, 2048: 214, 2049: 202, 2050: 123 };
+            var cnyMd = cny[y];
+            if (cnyMd != null ? md < cnyMd : md < 204) y = y - 1;
+            var animals = ["\uD83D\uDC00", "\uD83D\uDC02", "\uD83D\uDC05", "\uD83D\uDC07", "\uD83D\uDC09", "\uD83D\uDC0D", "\uD83D\uDC0E", "\uD83D\uDC10", "\uD83D\uDC12", "\uD83D\uDC13", "\uD83D\uDC15", "\uD83D\uDC16"];
+            var idx = (y - 4) % 12;
+            if (idx < 0) idx += 12;
+            var mark = "\uD83E\uDDE7 " + y + " " + animals[idx];
+            try { if (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) mark = "\uD83E\uDDE7 " + animals[idx]; } catch (e3) {}
+            document.documentElement.style.setProperty("--holiday-mark", JSON.stringify(mark));
+          } else {
+            document.documentElement.style.removeProperty("--holiday-mark");
+          }
+        }
+      } catch (e2) {}
+    })();
+    </script>
+    <link rel="stylesheet" href="assets/css/styles.css?v=20260818b">
+</head>
+<body data-page="merch" data-nav="merch">
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <div class="topbar">
+        <div class="container topbar-inner">
+            <span><strong data-contact-email-label>Email:</strong> <span data-bind="site.email"></span></span>
+            <span><strong data-contact-phone-label>Phone:</strong> <span data-bind="site.phone"></span></span>
+        </div>
+    </div>
+
+    <header class="site-header">
+        <div class="container header-inner">
+            <a href="./" class="brand">
+                <span class="brand-logo"><img data-bind-src="branding.logo" src="uploads/20260718012849-aa5e521c7f.png" alt="Auburn VSA logo"></span>
+                <span class="brand-text">
+                    <span class="brand-name" data-bind="site.orgName">Vietnamese Student Association</span>
+                    <span class="brand-uni" data-bind="site.university">Auburn University</span>
+                </span>
+            </a>
+
+            <nav class="nav-desktop">
+                <a href="./" class="nav-link" data-nav="home">Home</a>
+                <div class="dropdown">
+                    <button type="button" class="nav-link dropdown-toggle" data-nav="about" aria-expanded="false" aria-haspopup="true">
+                        About
+                        <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="dropdown-menu">
+                        <a href="executive-board">Executive Board</a>
+                        <a href="au-royale-directors">AU Royale Directors</a>
+                        <a href="tech-team">Tech Team</a>
+                    </div>
+                </div>
+                <a href="events" class="nav-link" data-nav="events">Events</a>
+                <a href="au-royale" class="nav-link" data-nav="royale">AU Royale</a>
+                <a href="gallery" class="nav-link" data-nav="gallery">Gallery</a>
+                <a href="merch" class="nav-link active" data-nav="merch">Merch</a>
+                <a href="faqs" class="nav-link" data-nav="faqs">FAQs</a>
+            </nav>
+
+            <div class="header-tools">
+                <button type="button" class="theme-toggle" id="theme-toggle" data-pref="light" aria-label="Color theme: Light. Click for Dark." aria-pressed="false" title="Theme: Light">
+                    <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke-linecap="round"/></svg>
+                    <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <svg class="theme-icon theme-icon-system" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4" stroke-linecap="round"/></svg>
+                </button>
+                <button id="mobile-menu-button" class="mobile-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <nav id="mobile-menu" class="nav-mobile hidden">
+            <div class="nav-mobile-group">
+                <a href="./" data-nav="home">Home</a>
+            </div>
+            <div class="nav-mobile-group">
+                <a href="executive-board" data-nav="about">About</a>
+                <div class="nav-mobile-children">
+                    <a href="executive-board">Executive Board</a>
+                    <a href="au-royale-directors">AU Royale Directors</a>
+                    <a href="tech-team">Tech Team</a>
+                </div>
+            </div>
+            <div class="nav-mobile-group"><a href="events" data-nav="events">Events</a></div>
+            <div class="nav-mobile-group"><a href="au-royale" data-nav="royale">AU Royale</a></div>
+            <div class="nav-mobile-group"><a href="gallery" data-nav="gallery">Gallery</a></div>
+            <div class="nav-mobile-group"><a href="merch" data-nav="merch">Merch</a></div>
+            <div class="nav-mobile-group"><a href="faqs" data-nav="faqs">FAQs</a></div>
+        </nav>
+    </header>
+
+    <main id="main">
+        <section class="container section-lg merch-page">
+            <header class="merch-header">
+                <h1 class="heading" id="merch-page-heading">Merchandise</h1>
+                <p class="merch-lede" id="merch-page-lede">Rep Auburn VSA — tap any item for details and to buy when a shop link is live.</p>
+            </header>
+            <div class="mt-8 merch-showcase" id="merch-showcase"></div>
+            <h3 class="merch-section-title" id="merch-shop-heading">Shop the collection</h3>
+            <div class="merch-grid" id="merch-products"></div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-grid">
+            <div>
+                <div class="footer-brand">
+                    <span class="brand-logo lg"><img data-bind-src="branding.logo" src="uploads/20260718012849-aa5e521c7f.png" alt="Auburn VSA logo"></span>
+                    <div>
+                        <p class="footer-org">Auburn <span data-bind="site.orgName">Vietnamese Student Association</span></p>
+                        <p class="footer-contact"><span data-contact-email-label>Email:</span> <span data-bind="site.email"></span></p>
+                        <p class="footer-contact"><span data-contact-phone-label>Phone:</span> <span data-bind="site.phone"></span></p>
+                    </div>
+                </div>
+                <p class="footer-tagline" data-bind="site.newsletterTagline"></p>
+                <ul class="socials" id="site-socials"></ul>
+            </div>
+
+            <div class="newsletter">
+                <h2>Sign Up for VSA Newsletters</h2>
+                <form data-newsletter>
+                    <label for="newsletter-email"><span data-newsletter-email-label>Email</span> <span class="req">*</span></label>
+                    <input id="newsletter-email" name="email" type="email" autocomplete="email" required placeholder="you@example.com">
+                    <button type="submit" class="btn btn-orange full">Subscribe</button>
+                    <p data-newsletter-msg class="newsletter-msg hidden"></p>
+                </form>
+            </div>
+        </div>
+        <div class="footer-legal">
+            <div class="container footer-legal-inner">
+                <p class="footer-copy">© <span data-year>2026</span> Auburn Vietnamese Student Association. All rights reserved.</p>
+                <p class="footer-legal-links"><a href="unsubscribe">Unsubscribe</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <script defer src="assets/js/site.js?v=20260818b"></script>
+</body>
+</html>

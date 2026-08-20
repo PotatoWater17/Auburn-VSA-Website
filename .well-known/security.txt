@@ -1,0 +1,11 @@
+# Auburn VSA — security contact (RFC 9116)
+# Update Expires when this file changes. No secrets here.
+
+Contact: mailto:vsaauburn@gmail.com
+Preferred-Languages: en
+Canonical: https://www.auburnvsa.com/.well-known/security.txt
+Expires: 2027-07-27T00:00:00Z
+
+Policy: Report suspected vulnerabilities to the contact above. Please allow reasonable
+time to investigate before public disclosure. Do not test against production in ways
+that could harm members or data (no destructive scans, no spam floods).

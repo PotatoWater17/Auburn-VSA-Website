@@ -1,0 +1,14 @@
+# Auburn VSA — crawl rules (static fallback if PHP rewrite is unavailable)
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /data/
+Disallow: /includes/
+Disallow: /tools/
+Disallow: /docs/
+Disallow: /workers/
+
+# Prefer Apache rewrite of /robots.txt → robots.php (emits absolute Sitemap URL).
+# After go-live: set Admin → Site → Public site URL, then confirm https://YOUR-DOMAIN/robots.txt
+# lists Sitemap: https://YOUR-DOMAIN/sitemap.xml

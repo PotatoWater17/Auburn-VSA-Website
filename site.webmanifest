@@ -1,0 +1,27 @@
+{
+  "name": "Auburn VSA | Vietnamese Student Association",
+  "short_name": "Auburn VSA",
+  "description": "Celebrating Vietnamese culture through friendship, service, and connection at Auburn University.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#344e74",
+  "theme_color": "#ff811d",
+  "lang": "en-US",
+  "categories": ["education", "lifestyle", "social"],
+  "icons": [
+    {
+      "src": "uploads/20260718012849-aa5e521c7f.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "uploads/20260718012849-aa5e521c7f.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

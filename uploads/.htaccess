@@ -1,0 +1,32 @@
+# Allow images/videos/audio to be served, but never execute scripts from uploads.
+# If Options causes HTTP 500 on a locked-down host, comment the next line out.
+Options -ExecCGI -Indexes
+<IfModule mod_authz_core.c>
+  <FilesMatch "(?i)\.(php\d*|phtml|phar|cgi|pl|py|jsp|asp|aspx|sh|shtml|htaccess|user\.ini)$">
+    Require all denied
+  </FilesMatch>
+  <FilesMatch "(?i)^(index\.(php|html?)|\.htaccess|\.user\.ini)$">
+    Require all denied
+  </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+  <FilesMatch "(?i)\.(php\d*|phtml|phar|cgi|pl|py|jsp|asp|aspx|sh|shtml|htaccess|user\.ini)$">
+    Order deny,allow
+    Deny from all
+  </FilesMatch>
+</IfModule>
+<IfModule mod_mime.c>
+  RemoveHandler .php .phtml .php3 .php4 .php5 .phps .phar
+  RemoveType .php .phtml .php3 .php4 .php5 .phps .phar
+  AddType audio/mpeg .mp3
+  AddType audio/mp4 .m4a
+  AddType audio/ogg .ogg .oga
+  AddType audio/wav .wav
+  AddType audio/webm .weba
+</IfModule>
+# Force downloads of unexpected types rather than execute (defense in depth).
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  # Hashed upload filenames are immutable enough for long browser/CDN cache.
+  Header set Cache-Control "public, max-age=31536000, immutable"
+</IfModule>

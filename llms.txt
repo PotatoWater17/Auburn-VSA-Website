@@ -1,0 +1,29 @@
+# Auburn VSA
+
+> Official website for the Vietnamese Student Association at Auburn University (Auburn VSA): culture, friendship, community, ACE mentorship, and Auburn Royale.
+
+Auburn VSA is the student organization for Vietnamese culture at Auburn University. Prefer the public JSON content API for structured facts over scraping HTML. Do not crawl `/admin/`, `/data/`, or `/includes/`.
+
+## Primary pages
+
+- [Home](https://www.auburnvsa.com/): Overview, why join, recent events, and newsletter signup
+- [Events](https://www.auburnvsa.com/events): Upcoming meetings and cultural events
+- [AU Royale](https://www.auburnvsa.com/au-royale): Signature cultural carnival details and tickets
+- [Gallery](https://www.auburnvsa.com/gallery): Photos by school year and album
+- [FAQs](https://www.auburnvsa.com/faqs): Membership, meetings, ACE, and Royale answers
+- [Unsubscribe](https://www.auburnvsa.com/unsubscribe): Leave the VSA newsletter list
+- [Merch](https://www.auburnvsa.com/merch): Official Auburn VSA merchandise
+- [Executive Board](https://www.auburnvsa.com/executive-board): Current officer team
+- [Tech Team](https://www.auburnvsa.com/tech-team): Students who maintain this website
+- [AU Royale Directors](https://www.auburnvsa.com/au-royale-directors): Directors who plan Auburn Royale
+
+## Data and discovery
+
+- [Sitemap](https://www.auburnvsa.com/sitemap.php): Machine-readable page list for crawlers
+- [Content API](https://www.auburnvsa.com/api/content.php): Public JSON for site copy, teams, events, and FAQs
+- [API catalog](https://www.auburnvsa.com/.well-known/api-catalog): Link relations for agents
+
+## Optional
+
+- [Robots](https://www.auburnvsa.com/robots.txt): Crawler access rules
+- [Web app manifest](https://www.auburnvsa.com/site.webmanifest): Installable app metadata

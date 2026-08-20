@@ -1,0 +1,750 @@
+can yo================================================================================
+AUBURN VSA WEBSITE — HOSTING-ADMIN RECREATE / OPS SPEC
+================================================================================
+File:     docs/SITE-RECREATE.txt
+Audience: Hosting admin who uploads files to the server (and Cursor agents).
+          Non-developer successors should start with docs/HANDOFF.md instead.
+Visibility: NOT public. This directory is denied by docs/.htaccess and by the
+            root .htaccess rewrite rule for tools|docs|data|includes|workers.
+            Do NOT link this file from public HTML, llms.txt, sitemap, or nav.
+
+SECRETS: Never put passwords, password hashes, API keys, session secrets, or
+         Cloudflare tokens in this file. Change defaults on handoff; store
+         credentials offline (password manager / sealed note).
+
+AGENTS: Whenever you change site behavior, structure, CMS fields, auth/ops
+        process, chrome rules, security deny paths, or maintenance workflow,
+        UPDATE THIS FILE in the same change. Also keep AGENTS.md in sync for
+        the short agent-facing summary.
+
+Last surveyed from live repo structure + AGENTS.md (do not invent details).
+
+================================================================================
+1. WHAT THIS SITE IS
+================================================================================
+Public site for the Auburn University Vietnamese Student Association (VSA).
+
+Architecture:
+  - Public pages = static HTML at the web root
+  - Hydrated by assets/js/site.js fetching api/content.php (JSON CMS content)
+  - PHP for admin CMS, content API, uploads, newsletter, FAQ ask, construction
+    mode, SEO helpers (robots.php / sitemap.php), backup
+  - No framework, no Composer, no build step, no Node bundler
+
+Do NOT convert public pages to PHP templates / SSI. Keep static HTML + API.
+
+Navy placeholder boxes (rendered in JS) stand in wherever a CMS image has not
+yet been uploaded.
+
+================================================================================
+2. STACK REQUIREMENTS
+================================================================================
+Required:
+  - Apache (mod_rewrite, mod_headers recommended)
+  - AllowOverride so per-directory .htaccess files work (critical for denies)
+  - PHP 7.4+ (polyfills for str_contains / str_starts_with / str_ends_with;
+    match() removed). Prefer PHP 8.1 or 8.2. Will NOT run on PHP 7.0–7.3.
+  - PHP GD extension (image upload resize/recompress in includes/image_optimize.php)
+    — optional; uploads still work without resize
+  - Writable directories on the server:
+      data/     (runtime JSON + hashes; git-ignored contents)
+      uploads/  (CMS media; git-ignored contents)
+
+Nice / expected in production:
+  - HTTPS (session cookies set Secure when HTTPS is detected)
+  - Cloudflare in front (optional). If used: cache /assets/ and /uploads/;
+    do NOT aggressively cache /admin/ or /api/.
+
+Subdirectory hosting (e.g. https://university.edu/~vsa/):
+  - Supported without a rebuild. Public pages use relative hrefs and assets;
+    site.js derives the app base from its own <script src> (override with
+    window.VSA_BASE = "/your/path" before site.js if auto-detect is wrong).
+  - Session cookie auto-scopes to the mount path (see §7).
+  - If clean URLs (e.g. /~vsa/events) 404: edit root .htaccess and uncomment
+    `RewriteBase /~vsa/` set to the real mount path.
+
+Dev (local):
+  - PHP built-in server: php -S 0.0.0.0:8000 -t .
+  - Built-in server does NOT process .htaccess — denies must be verified on Apache
+  - Image URLs are root-relative (uploads/x.png); admin previews prefix ../
+  - Validate PHP: php -l <file>
+
+================================================================================
+3. DIRECTORY MAP
+================================================================================
+/ (web root)
+  *.html                 Public pages (10 files) — see §4
+  .htaccess              DirectoryIndex, security headers, asset cache,
+                         FilesMatch denies, rewrite: clean URLs + deny ops trees
+  AGENTS.md              Agent/maintainer summary (also denied by FilesMatch)
+  robots.php / robots.txt rewrite → robots.php (absolute Sitemap: …/sitemap.xml;
+                         also Disallow tools/docs/workers)
+  sitemap.xml            Static sitemap at root with lastmod (max of HTML + content.json
+                         mtimes); sitemap.php is the same logic as a PHP fallback
+  site.webmanifest       PWA icons match site logo upload
+  llms.txt               Public LLM/discovery text (NOT this recreate doc)
+  LICENSE
+  .well-known/           api-catalog discovery (php)
+
+admin/                   CMS console (login, dashboard, save, upload, users, …)
+api/                     Public JSON/POST endpoints (see §6)
+includes/                Shared PHP — DENIED (includes/.htaccess)
+data/                    Runtime JSON + hashes — DENIED (data/.htaccess); gitignore
+uploads/                 CMS media — served, but scripts denied (uploads/.htaccess)
+assets/
+  css/styles.css         Public styles + brand tokens + dark theme
+  css/admin.css          Admin UI (self-contained :root; keep brand hex in sync)
+  js/site.js             Public hydrate + UX
+  js/admin.js            Admin UI; SECTION_DEFS schemas; PAGES tab copy;
+                         team View page follows active roster tab;
+                         list empty states / friendlier select labels
+  ASSET_VERSION          Cache-bust token string
+tools/                   CLI only — DENIED (tools/.htaccess + root rewrite)
+  bump-assets.php
+  check-maintenance.php
+  check-hosting.php      PHP/ext/.htaccess/writability readiness
+  pack-deploy.php        Build auburn-vsa-deploy.zip for shared hosting
+  optimize-uploads.php
+docs/                    Maintainer docs — DENIED (docs/.htaccess + root rewrite)
+  SITE-RECREATE.txt      THIS FILE (full recreate / ops spec)
+  HANDOFF.md             Plain-language handoff for a non-developer successor
+
+Nested .htaccess deny pattern (Apache 2.4):
+  Require all denied
+Used by: data/, includes/, tools/, docs/, workers/
+
+uploads/.htaccess: allow images/videos, deny script execution / Indexes.
+admin/, api/: Options -Indexes + security headers (not fully denied).
+
+Root belt-and-suspenders rewrite (even if nested .htaccess missing):
+  RewriteRule ^(tools|docs|data|includes|workers)(/|$) - [F,L]
+
+Root FilesMatch also denies AGENTS.md, .env, backup footprints, and
+SITE-RECREATE.txt by name if ever misplaced at web root.
+
+================================================================================
+4. PUBLIC PAGES + CHROME RULES
+================================================================================
+Pages (root *.html):
+  index.html                 Home
+  executive-board.html       Team — Executive Board
+  tech-team.html             Team — Tech Team
+  au-royale-directors.html   Team — AU Royale Directors
+  events.html                Events
+  au-royale.html             AU Royale
+  gallery.html               Gallery
+  merch.html                 Merch
+  faqs.html                  FAQs
+  unsubscribe.html           Newsletter unsubscribe (noindex; form → /api/newsletter.php;
+                             trailing /unsubscribe/ redirects to /unsubscribe so CSS/JS load;
+                             usable even when construction mode gates the rest of the site;
+                             slim footer — no Subscribe form next to unsubscribe)
+
+Clean URLs (Apache rewrite): /events → events.html, etc. Old *.php public URLs
+301 to clean paths. Prefer extensionless canonical URLs.
+  Static HTML uses absolute canonicals (https://www.auburnvsa.com/…) so crawlers
+  / PageSpeed see a valid rel=canonical before JS; site.js may rewrite from
+  Admin → Site → Public site URL when set.
+
+Shared chrome (NO includes / NO SSI):
+  Skip link → #main, topbar (email/phone), sticky orange site header/nav, footer
+  (socials + newsletter + copyright + quiet Unsubscribe link) are COPY-PASTED
+  across public HTML pages. Nav hrefs are extensionless (/events, not events.html).
+  Static og:image / twitter:image / favicon use absolute https://www.auburnvsa.com/…
+  URLs so social scrapers work before JS runs. unsubscribe.html may omit the
+  newsletter column.
+  Footer legal: “© {year} Auburn Vietnamese Student Association. All rights
+  reserved.” — year from [data-year] via site.js fillChrome.
+
+Workflow:
+  1. Use index.html as the canonical reference for the chrome blocks.
+  2. Replicate into EVERY root *.html the same way (unsubscribe may omit newsletter).
+  3. Footer Subscribe button label must stay identical: "Subscribe"
+  4. Prefer extensionless nav hrefs **without a leading slash** (`events`, not
+   `/events` or `events.html`) so the site also works under a subdirectory
+   (`university.edu/~vsa/`). Home uses `href="./"`. Include skip-link + footer
+   Unsubscribe link.
+  5. Page-only diffs: <main id="main">, <head> meta, data-page, data-nav, data-team
+  6. Team pages: data-page="team"; data-team =
+       executiveBoard | techTeam | royaleDirectors
+     About dropdown + mobile About children order (all pages):
+       Executive Board → AU Royale Directors → Tech Team
+     Team roster pages include “Also meet” prev/next cycle controls
+       (Exec ↔ Royale Directors ↔ Tech Team, looping) above and below
+       the member grid.
+  7. Run: php tools/check-maintenance.php
+     (detects nav/footer drift + cache tokens)
+
+Fonts (Google Fonts in each page <head>):
+  Be Vietnam Pro (600/700) — headings
+  Source Sans 3 (400/600) — body
+  CSS: body uses "Source Sans 3"; headings use "Be Vietnam Pro"
+
+Theme (public + admin):
+  localStorage key: vsa-theme
+  Preferences cycle: light → dark → system → light
+  Default preference: light (if missing/invalid)
+  Applied as html[data-theme="light"|"dark"] and data-theme-pref
+  Dark palette overrides surface/text/input tokens; admin cards (users, team member-cards, list-rows, FAQ/subscribers) use those tokens — not hard-coded white
+
+================================================================================
+5. BRAND
+================================================================================
+CSS variables in assets/css/styles.css :root (prefer var(--…) over hard hex):
+
+  --orange:       #ff811d
+  --orange-dark:  #ff9338   (lighter hover)
+  --orange-deep:  #e06e10
+  --navy:         #344e74
+  --navy-dark:    #263a57
+  --navy-deep:    #1a3560   (highlight strips / Royale hero start)
+  --navy-mid:     #45648f
+  --navy-lift:    #3d5c87
+  --navy-soft:    #4a678f
+  --navy-box:     #4f719c   (placeholder boxes)
+  --auburn-blue:  #2a3f5e
+
+Put NEW base CSS rules ABOVE the large @media blocks at the bottom of
+styles.css. Keep admin.css :root brand hex values in sync when brand changes.
+
+Sticky orange site header; navy topbar scrolls away.
+
+================================================================================
+6. CMS, CONTENT, UPLOADS, APIs
+================================================================================
+Content store:
+  data/content.json — live CMS payload (git-ignored)
+  Delete content.json to reset to default_content() in includes/content.php
+  Admin Save opens a publish dialog: ASAP (default) or schedule date/time
+  ASAP writes content.json (live) — status “Published.”
+  Schedule writes data/scheduled_publish.json (not live content.json); includes/publish.php
+    apply-on-read (get_content / api/content.php) merges due jobs into content.json
+  Logo upload auto-publishes ASAP (no dialog)
+  Cancel schedule from the admin banner or Admin → Publish
+  List items with Visible on site (yes/no; default yes; visible=no keeps
+    the record in content.json but omits it from public render):
+    home whyJoin / galleryImages (org pictures) / instagramPosts / alumni,
+    events, royale sponsors, gallery albums, merch showcase + products,
+    FAQs, team members, social links
+  Newsletter (Admin → Newsletter): pending unsubscribe requests block at top
+    (Approve / Dismiss / Refresh); then monthly compose → Copy for Gmail
+    (preview window + Gmail inbox; compose deep-links blank out) + paste help;
+    HTML/plain download; modern navy/orange email template (quiet gray canvas,
+    horizontal brand lockup + issue date, inset photos, numbered event blocks
+    with When/Where labels, Get involved CTA card, footer Website/Instagram/Unsubscribe);
+    named draft library (data/newsletter_drafts.json v2: multiple named drafts,
+    New / Save / Save as new / Duplicate / Delete; migrates legacy single draft;
+    cap 40); inbox preheader uses hidden + Gmail-safe filler so the
+    gray preview line stays polished (does not leak the brand header slogan);
+    “Add from Events” pulls visible upcoming Events CMS rows into the draft
+    (dedupes by title+date; appends if draft already has content);
+    subscribers CSV + BCC chunks
+    (data/newsletters.json, data/newsletter_drafts.json,
+    data/newsletter_unsub_requests.json). Public /unsubscribe queues an
+    admin-approved request (scripts cannot wipe the list). Personal ?t=
+    token links still remove immediately (for mail merge). Email footer
+    links to /unsubscribe. Public JS uses root-absolute /api/… fetches.
+    No SMTP.
+  CMS Save (all page tabs) → publish dialog (ASAP|schedule)
+  FAQ Inbox → Answer & publish (same publish dialog; schedule enqueues faqs);
+    answer drafts persist in sessionStorage until publish/dismiss
+  Team Save warns when members have blank emails (real contact info is admin-filled)
+
+Schemas must stay in sync:
+  includes/content.php → default_content()
+  assets/js/admin.js   → SECTION_DEFS (+ PAGES tabs)
+  assets/js/site.js    → public render (+ HTML mount points if new)
+
+Content section keys (high level):
+  site, branding, effects, socials, links, home, team, events, royale,
+  gallery, merch, faqs, music
+
+Admin console tabs (admin/index.php + admin.js PAGES):
+  Shared: Site, FAQ Inbox, Messages, Blocked IPs, Newsletter, Mail,
+          Publish, Media, Music, Backup, Manage users (root), Activity log (root)
+  Pages:  Home, Team, Events, AU Royale, Gallery, Merch, FAQs
+  Chrome: Needs-attention strip under header (FAQ / messages / unsubs /
+          unread mail / scheduled publishes; root also sees logged site errors)
+          → jumps to that tab
+  Nav tabs include stroke icons for quick recognition
+  Split scroll: left sidebar + right content panes scroll independently
+    (on ≤720px the console scrolls as one page so header/nav aren’t clipped)
+  Header: brand + theme toggle on the lead row; user/actions wrap below on narrow
+  Mobile (≤900px): nav becomes a horizontal scrolling chip strip (groups auto-expanded)
+  Primary buttons min-height 44px; login inputs 16px font (no iOS zoom); field-group
+    summaries ≥48px tap height; form controls use 1rem on ≤720px
+  Shared / Pages nav groups collapse by default on desktop (expand on use; remembered)
+  Dashboard landing: status, attention, ring charts at a glance, quick tasks;
+    Last published / Last edited cards (activity log + content/schedule mtimes)
+  View page links use extensionless public paths (/events, /faqs, …)
+  Media tab: all /uploads images; search by filename or usage; click → usage in
+    content, newsletter drafts, and scheduled publishes (Open tab jumps to that
+    section); Rename updates the file on disk and rewrites all matching refs;
+    Delete permanently removes the file from disk (double-confirm if in use;
+    does not auto-clear CMS references)
+  Music tab (permission: music; Ops role includes it): enable footer-logo
+    easter egg, click count (3/5/7/10), track list (title / artist / audio).
+    Public: N clicks on footer `.brand-logo.lg` unlocks a right-side player;
+    prev / play / next, seek, vertical volume control (persisted), Spotify-style
+    repeat (off → all → one), and a queue panel to browse/pick songs. Collapsed
+    = pill with expand + prev / play / next. X fully dismisses (no chip) and
+    clears unlock — spam the logo again to reopen. Persisted in localStorage
+    while open: unlock (`vsa-egg-music-unlocked`), collapse, repeat.
+    Search EASTER_EGG_MUSIC to remove. No player while construction gate is on
+    (fillChrome not called for gated visitors).
+
+Permissions (includes/users.php admin_permission_catalog):
+  site, faq-inbox, messages, blocked-ips, subscribers, mail, publish,
+  backup, media, music, home, team, events, royale, gallery, merch, faqs, users
+  Root "admin" has all; users/activity UI is root-only in the dashboard.
+  Publish tab also visible to editors who can edit Site/Backup/content pages.
+  Media tab visible with media perm, or Site/Backup/any content page perm.
+  Manage users → Role checkboxes: Content / Comms / Ops (multi-select;
+  unions section access). All roles / Clear helpers. Section checkboxes
+  remain the source of truth and stay in sync with roles.
+
+Uploads:
+  admin/upload.php → uploads/YYYYMMDDHHMMSS-<random>.{png,jpg,webp,mp4,webm,mp3,m4a,…}
+  GET upload.php?action=list → recent images for Admin “Library” picker
+  GET admin/media.php?action=list → full library + usage map (Media tab)
+  POST admin/media.php { action: delete, name } → permanent unlink from uploads/
+  Images optimized via includes/image_optimize.php (needs GD)
+  Max long edge: home hero 2560px; other CMS photos 2400px; Site logo 800px
+  (JPEG quality ~86 for large photos). Re-upload hero after raising limits if
+  the stored file is still the old 1600px version.
+  Allowed images: png, jpeg, webp, gif; videos: webm, mp4/quicktime (validated)
+  Allowed audio (intent=audio only, from Music track control): mp3, m4a, ogg,
+    wav, webm audio — signature-checked; max 25 MB; not image-optimized
+  Public URL path: uploads/<filename> (UPLOADS_URL in config)
+  Image controls: Library (reuse), Adjust (crop), Clear, drag-drop / file / URL
+  includes/media_library.php — list + usage scan (content / drafts / schedule)
+
+API endpoints (api/):
+  content.php              GET public CMS JSON; when construction mode is on and
+                           preview is off, returns a minimal gate payload only
+                           (construction title/body + org name; _constructionRestricted)
+  newsletter.php           Footer subscribe + unsubscribe (honeypot + rate limit after
+                             validation; unsub = 5 attempts / IP then 12h cooldown;
+                             cooldown lists under Blocked IPs → Unsubscribe cooldowns
+                             (soft lock, not sitewide) + Messages security alert;
+                             Clear cooldown clears rate bucket). Email form queues
+                             admin approval; ?t= token removes immediately.
+  faq-ask.php              FAQs ask sheet → FAQ inbox
+  mail-inbound.php         Cloudflare Worker webhook → Admin Mail store
+                           (Bearer MAIL_INBOUND_SECRET)
+  construction-auth.php    Construction mode unlock session
+  construction-message.php Construction visitor messages
+
+Other PHP surfaces:
+  admin/*                  login, save, upload, users, backup, blocked-ips,
+                           faq-inbox, messages, subscribers, mail, activity,
+                           password, health (root: error log read/clear)
+  robots.php, sitemap.php  SEO
+  workers/vsa-mail/        Cloudflare Email Worker (wrangler deploy; web-denied)
+
+Runtime data files under data/ (all git-ignored; never commit secrets):
+  content.json, scheduled_publish.json, users.json, .admin_password_hash,
+  newsletters.json, newsletter_drafts.json, newsletter_unsub_requests.json,
+  faq_inbox.json, blocked_ips.json, activity_log.json, error_log.json,
+  uptime.json, construction_messages.json, admin_login_attempts.json,
+  public_api_rate.json, construction_rate.json, construction_login_attempts.json,
+  mail/info.json, mail/sale.json, .mail_inbound_secret
+  (+ *.tmp during atomic writes)
+
+Admin Mail — NOT DEPLOYED / NOT WORKING:
+  The code exists (admin/mail.php, includes/mail.php, api/mail-inbound.php,
+  workers/vsa-mail/) but the Cloudflare Email Routing + Worker side was never
+  set up, so the Mail tab can never receive a message as shipped.
+  Design was: info@ + sale@ → Cloudflare Email Routing → Worker →
+  api/mail-inbound.php → Admin → Mail. Receive-only; no Compose/Send.
+  Either deploy the Worker (wrangler; set the inbound secret from
+  data/.mail_inbound_secret) or delete the feature — do not hand it off as
+  if it works. Permissions: mail + per-user mailboxes[] (info/sale).
+
+================================================================================
+7. AUTH / SECURITY (HIGH LEVEL — NO SECRETS)
+================================================================================
+Multi-user admins: data/users.json via includes/users.php
+Legacy/root password resolution order:
+  1) env ADMIN_PASSWORD_HASH
+  2) data/.admin_password_hash
+  3) no fallback — login fails closed if neither a valid users row nor hash exists
+No plaintext password or fallback hash ships in source.
+Store new credentials offline — never in this file or in git.
+
+Sessions (includes/auth.php):
+  HttpOnly, SameSite=Lax, Secure when HTTPS detected
+  Cookie path is auto-scoped to the app mount: domain-root installs use "/";
+  subdirectory installs (e.g. /~vsa/admin/…) scope the cookie to /~vsa so a
+  neighboring app on the same host cannot read the admin session.
+  Expires after 2 h idle or 12 h from login (ADMIN_SESSION_IDLE_SECONDS /
+  ADMIN_SESSION_MAX_SECONDS env overrides). CSRF is tied to the session — when
+  it expires, stolen session cookies and CSRF tokens stop working. Passive
+  session.php reads do not extend the idle clock; authenticated saves/uploads do.
+  Session cookie is bound to the signing-in browser User-Agent hash (disable with
+  VSA_SESSION_BIND_UA=0 if a host proxy rewrites User-Agent).
+
+CSRF:
+  Write/admin APIs require X-CSRF-Token (or form csrf field)
+  Token from session via csrf_token() / verify_csrf()
+  Admin + public write APIs also require same-origin (Origin/Referer host match).
+
+Security headers (includes/security.php + root .htaccess):
+  HSTS (HTTPS), X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
+  Permissions-Policy, COOP, CORP (JSON APIs), CSP on HTML (fonts + media embeds),
+  X-Permitted-Cross-Domain-Policies, no-store on admin/API JSON, X-Robots-Tag
+  noindex on admin. TRACE/TRACK blocked. Production HTTPS redirect in .htaccess
+  (comment out for local http dev). /.well-known/security.txt (RFC 9116).
+
+Blocked IPs:
+  data/blocked_ips.json; admin UI with Site blocks + Unsubscribe cooldowns sections;
+  auto-block after repeated failed logins and construction spam thresholds;
+  unsub rate-limit rows use source=unsub_cooldown (soft lock — browse OK,
+  unsubscribe blocked until expiry or Clear cooldown); posts Messages alert
+  (see admin Messages / Blocked IPs copy)
+
+Activity log:
+  data/activity_log.json; root-only admin view; secrets stripped from meta
+  IP via client_ip() (REMOTE_ADDR; CF-Connecting-IP when peer is CF edge OR
+  loopback — so local cloudflared → Apache does not log only ::1)
+
+Error log (includes/errorlog.php):
+  Admin APIs run with display_errors off, so fatals would otherwise be silent.
+  config.php installs vsa_install_error_handlers() on every request: uncaught
+  exceptions + fatal shutdown errors land in data/error_log.json (capped 200,
+  repeats within 5 min bump a count) and mirror to the host error log.
+  Surfaced root-only on Admin → Dashboard → "Site health" + a needs-attention
+  chip. admin/health.php (root, CSRF) reads/clears.
+
+Server uptime (includes/uptime.php):
+  Heartbeats written to data/uptime.json (throttled ~5 min) from api/content.php
+  and Admin dashboard load. Gaps ≥ 2 h between heartbeats are recorded as
+  "quiet gaps" (possible outages) when traffic returns. Shown on Admin →
+  Dashboard → "Server uptime". GET api/health.php forces a heartbeat and returns
+  JSON for free external monitors (UptimeRobot etc.). Quiet nights with no
+  visitors are normal — not proof the host was down.
+
+HTTPS / Secure cookies:
+  is_https_request() trusts X-Forwarded-Proto / CF-Visitor when REMOTE_ADDR
+  is a Cloudflare edge IP or loopback (not via spoofable headers from the open internet)
+
+Public API rate limits: includes/security.php public_api_rate_check()
+CMS URL sanitization: sanitize_cms_urls() blanks unsafe href/image/videoUrl/etc.
+  on save and on public content API output
+
+Construction mode: site.constructionMode in CMS; public overlay + optional
+admin unlock via construction-auth APIs. Full CMS JSON is withheld from
+unauthenticated / non-preview clients (api/content.php gate payload).
+site.js does not hydrate page content under the gate for visitors.
+
+Root .htaccess also 403s tools|docs|data|includes|workers (belt-and-
+suspenders with nested Require all denied).
+
+================================================================================
+8. KEY PUBLIC UX FEATURES
+================================================================================
+Sitewide:
+  - Sticky orange header; navy contact topbar scrolls away
+  - Next-up strip when a dated upcoming event exists (details, Google Calendar,
+    .ics download); on ≤767px next-up CTAs stack full-width. Chevron-only
+    toggle (no Collapse/Expand text): collapsed shows label + title only;
+    preference in sessionStorage key vsa-next-up-collapsed (session-scoped)
+  - Theme toggle (vsa-theme); default light; sheets/forms use theme tokens
+    (--cream / --input-*) so dark mode applies to event/FAQ/merch panels
+  - Holiday theme overlay (Admin → Site → holidayTheme): auto | off |
+    halloween | christmas | july4 | valentines | newyear | stpatricks.
+    auto (default) picks by visitor local date windows (Valentine Feb 7–15,
+    Chinese New Year season Jan 20–Feb 28, St Patrick Mar 10–18,
+    July 4 Jun 28–Jul 6, Halloween Oct 15–Nov 2, Christmas Dec 1–27);
+    off forces none; named values force that theme. Sets html[data-holiday];
+    CSS/JS marked HOLIDAY_THEMES (safe to delete). Topbar + header color
+    takeover; right-side mark on .header-inner (July 4 US flag SVG;
+    Valentine 💌; Christmas 🎄; Halloween 🎃; St Patrick ☘️; newyear =
+    Chinese New Year red with 🧧 + year + zodiac via --holiday-mark CSS
+    var). Valentine wins over CNY on Feb 7–15. No diagonal stripes.
+    Early head boot + localStorage vsa-holiday-pref prevents orange flash;
+    header overflow stays visible so About dropdown is not clipped.
+    Marks stay on the top bar row when mobile nav opens. Construction gate
+    payload still includes holidayTheme so seasonal chrome stays in sync.
+    Admin → Site → Holiday theme has View more sheet with auto schedule.
+    Brand logo file untouched.
+  - Admin → Site / Home / Events / AU Royale / Merch / FAQs / Team / Gallery:
+    long forms use collapsible field groups (all collapsed by default). Lists
+    (Why Join, events, sponsors, products, etc.) are also folded into groups.
+    Click a header to expand.
+  - Button hover effect (Admin → Site → buttonEffect): flat | lift | shine |
+    jelly | playful | pop | pulse | fill | neon | wiggle. Default lift.
+    Sets html[data-btn-effect]; CSS/JS marked BUTTON_EFFECTS.
+    Flat = color only; Lift = rise + soft shadow; Shine = lift + light streak;
+    Jelly = springy bounce; Playful = comic/kid (Comic Neue, hard shadows);
+    Pop = bold scale + shadow bloom; Pulse = expanding soft ring;
+    Fill = wipe / solid fill; Neon = soft brand glow; Wiggle = playful shake.
+    Pref cached in localStorage vsa-btn-effect. Construction gate
+    payload includes buttonEffect. Reduced-motion disables transforms/animations.
+  - Footer socials + newsletter subscribe
+  - Navy/orange image placeholders when CMS media empty
+  - Responsive chrome: hamburger nav ≤1023px; tap targets (≥44px) for toggle,
+    buttons, socials, newsletter input, topbar links, and carousel arrows in
+    that same range (not only ≤767). Phone (≤767): topbar email/phone wrap with
+    space-between (stack when narrow); single-column grids, brand name wraps
+    (no ellipsis), team-cycle links stack. Alumni carousel ~7 across desktop →
+    ~4 tablet → ~2+peek on ≤560px phones.
+
+Home:
+  - Hero (welcome / title / brief / photo), join-path hint under CTAs,
+    about (Join + Meet the board), Why Join columns + Join CTA,
+    How to join (3 steps + Join/FAQs), bottom CTA band,
+    mobile sticky Join bar (home.stickyJoin; session-dismissible)
+  - Page labels/buttons are CMS-editable (headings, CTAs, Instagram/alumni
+    subtexts, sticky Join label, next-up label + action buttons, recent/org
+    empty-state copy). Brand headings use | to mark orange words
+    (e.g. About | Auburn VSA). See setBrandHeading in site.js.
+  - Site chrome labels also CMS-editable under Admin → Site (nav labels,
+    Email/Phone labels, newsletter email label, skip link, Unsubscribe link).
+  - Why Join columns (each column owns title/body/photo; legacy whyJoinImages folded into whyJoin[].image)
+  - Organization pictures slideshow
+  - Recent events slideshow (events flagged showOnHome); band uses solid
+    --navy-deep (no orange/navy gradient behind the photo)
+  - Navy section bands (next-up, Why Join, bottom CTA) are solid --navy-deep;
+    band-mist About/Instagram is solid --blue-soft. Footer + Royale ticketing
+    (band-navy) keep their existing atmosphere.
+  - Next-up on Home also offers “New here? Join VSA”
+  - Instagram block (own photos + optional post URLs — no AI images guidance)
+  - Alumni / Where we are now carousel:
+      * Section heading + subtitle centered like other home headings
+      * Item fields: name, year (grad year — admin label “Grad year”), jobTitle (job title), note (employer/city), description, image
+      * Cards: name + jobTitle (or legacy title) + formatted grad year (“Class of YYYY” / “Grad …”) — compact on mobile
+      * Detail sheet: left = photo only; right = name + jobTitle + grad year + note + description (name once — not under/over photo; header stays “Alumni”)
+      * Card shows name + title + class (jobTitle, else note, else legacy title; then Class of YYYY); tap/click opens detail sheet; imgs non-draggable / pointer-events none; card body text left-aligned under the photo
+      * Arrows / auto-scroll ONLY when the row overflows the track
+      * Visible density: ~7 desktop / ~4 at ≤900px / ~2+peek at ≤560px
+      * Card widths pinned in JS from window.innerWidth + carousel.clientWidth (px) on layout/resize so phone loop period matches real screen; CSS cqi is first-paint fallback only. setWidth = distance between first cards of the two sets.
+      * When not overflowing (is-static): center the card group in the track (justify-content:center) — do not center card internals
+      * Seamless infinite loop when overflowing: 2 identical sets in one strip; RAF translate3d only (setWidth cached on layout — never measured in tick; no scrollLeft). ~42 px/s; hover does not pause; arrows + detail click/tap + optional pointer drag-swipe (ALUMNI_ENABLE_DRAG_SWIPE kill switch / removable bindAlumniDragSwipe block — search ALUMNI_DRAG_SWIPE). No wheel. Arrow steps use ease-in-out swipe; duration from site.alumniStepMs (Admin → Site; default 180ms; lower = faster). Interaction pauses auto (“limp”); resumes after site.alumniIdleSeconds idle (default 5). Detail sheet stays paused until closed, then idle timer starts. Reduced-motion disables auto (instant steps). Static/centered when a single set fits.
+      * Client-side Fisher–Yates shuffle of alumni order on each page load (not persisted); card data-alumni-index maps into shuffled list for detail sheet
+      * Respects prefers-reduced-motion; starts when ~35% of section in view
+
+Events:
+  - Page heading, View all, Upcoming heading, All-events modal title, and
+    calendar card kicker/title/button labels are CMS-editable (events.*).
+  - Carousel + view-all modal + event detail sheet (description, link, image)
+  - dateMode: scheduled | upcoming | custom (eventWhen admin control)
+  - Per-event showOnHome: admin switch (yes/no) → home Recent Events slideshow
+  - events.calendarUrl: public/embed Google Calendar URL → branded navy card +
+    embed iframe on Events + “Open full calendar” (hidden when empty;
+    calendar.google.com only; embed params: orange events, soft bgcolor)
+
+AU Royale:
+  - Navy hero, date/location/cost; About + What to expect + Who’s welcome
+    (CMS: introText, expectText, welcomeText + matching *Heading labels) +
+    Share/Copy under About; ticketing copy + Purchase Tickets
+    (links.purchaseTickets + ticketsButtonLabel). Event details
+    should match Auburn Events Calendar when scheduled.
+  - Section headings/subtexts/buttons CMS-editable (videoHeading, galleryHeading,
+    sponsorsHeading, ticketingHeading, etc.; | for orange words).
+  - Royale video (CMS royale.videoUrl + royale.videoImage poster), placed
+    first on the page (above the navy hero title/date/location band, which
+    then sits between video and About). Section uses royale-video-band: solid
+    --navy-deep (same as the title hero; no stripe texture or radial glow).
+    YouTube/Vimeo → muted autoplay iframe; uploaded file →
+    <video> with Unmute / Volume / Fullscreen controls. Section
+    (#royale-video-section) starts hidden and stays hidden when videoUrl is
+    empty (no placeholder box).
+  - Gallery highlights: auto-scrolling slideshow from Gallery albums whose
+    name contains “royale” (prefer current/default school year, then older;
+    de-duped, capped). Click opens the same gallery lightbox; CTA to gallery.html.
+    Section hidden when no Royale album photos exist.
+  - Shared slideshow drag (mountSlideshow): pointer drag on touch + desktop —
+    axis-locks horizontal, then blocks page touch-scroll via document
+    touchmove preventDefault (no body position:fixed — that jumped scroll).
+    Live scrub, rubber-band at ends, velocity fling; click/tap still opens
+    hits; pure vertical intent abandons so the page can scroll. Seamless loop
+    both ways via leading clone(last) + trailing clone(first), snap after
+    transition. Swipe direction uses move-path / peak dx (not pointerup
+    clientX) so phones that report stale/0 lift coords still go previous on
+    a right swipe.
+  - Alumni drag-swipe inertia: release coasts with friction decay (makeSwipeVelocity
+    shared helper); same move-path dx for coast direction; kill switch
+    ALUMNI_ENABLE_DRAG_SWIPE still applies.
+  - Sponsors & partners slideshow (royale.sponsorsImages — image + optional
+    link/name): same mountSlideshow features as other highlights (swipe/fling,
+    seamless loop both ways, tap opens lightbox; link shown in lightbox when set).
+    Purchase Tickets CTA (links.purchaseTickets)
+
+Gallery:
+  - gallery.pageHeading CMS-editable
+  - School-year dropdown (gallery.years[]); activeYearId
+  - Per year: optional recap video URL/image + categories (albums) + lightbox
+  - Admin year id: empty/blank ids normalize from label; duplicate ids get a numeric suffix on blur/change so tabs + public dropdown stay unique
+
+Merch:
+  - pageHeading, pageLede, shopHeading CMS-editable
+  - Showcase slideshow + product grid + detail sheet (price, status, buy link)
+  - Admin price: optional; soft blur prefixes bare numbers with "$" but does NOT force bare "$" when cleared (empty stays empty / hidden on public)
+
+FAQs:
+  - faqPage chrome (heading, ask CTA, sheet labels) + accordion of published faqs[]
+  - Ask sheet → api/faq-ask.php → Admin FAQ Inbox (answer/publish/dismiss)
+
+Team pages:
+  - Roster from team.executiveBoard | techTeam | royaleDirectors
+  - Per-roster pageTitles / sectionHeadings + shared cycleLabel CMS-editable
+  - Admin member Description (bio): hard max 4 newline lines (Enter blocked after
+    4th; paste/input clamped); public render also slices to 4 lines
+  - Portrait cards: true 3D flip (perspective + preserve-3d + backface-visibility)
+    for bio reveal; reduced-motion falls back to a short crossfade
+  - Optional accent line under hero (effects.teamAccentLine); floating motifs removed
+
+Social icons:
+  - Built-in SVG icons (instagram, facebook, x, youtube, linkedin, discord,
+    tiktok, auinvolve, …)
+  - Custom uploaded icons rendered as CSS mask (background-color: currentColor)
+    so they inherit footer white / orange-on-hover (navy-colored artwork
+    converts via mask + currentColor — upload simple silhouette icons)
+  - Admin dark mode: custom icon thumbs (editor preview + compact list rows)
+    invert navy silhouettes for visibility on dark panels
+
+Dark theme polish (public):
+  - Text that must track theme uses --heading / --text (not hard-coded --navy)
+    for home hero title, carousel arrows, alumni sheet job title, etc.
+
+================================================================================
+9. CACHE BUST / MAINTENANCE WORKFLOW
+================================================================================
+CSS/JS served with long immutable Cache-Control; pages reference ?v=TOKEN.
+
+After editing assets/css/* or assets/js/*:
+  1. php tools/bump-assets.php --bump
+     Updates assets/ASSET_VERSION and rewrites ?v= in all root *.html,
+     admin/index.php, admin/login.php, admin/password.php
+  2. Optional: php tools/check-maintenance.php
+  3. Re-apply current token without changing it: php tools/bump-assets.php
+
+After chrome edits: check-maintenance.php (nav/footer drift + tokens).
+
+Adding a CMS field:
+  1. default_content() in includes/content.php
+  2. SECTION_DEFS in assets/js/admin.js
+  3. Render in assets/js/site.js (+ HTML mount if needed)
+  4. bump-assets if JS changed
+  5. UPDATE THIS FILE (docs/SITE-RECREATE.txt)
+
+Optional: php tools/optimize-uploads.php for existing upload recompress.
+
+Cloudflare tip: cache /assets/ and /uploads/; do not aggressively cache
+/admin/ or /api/. Keep Always Use HTTPS + apex→www. Prefer SSL Full (strict)
+or Tunnel (not Flexible) so origin redirects don’t emit http:// Locations.
+Managed robots.txt prepends Content Signals (search=yes — fine for Google);
+origin Sitemap line still follows. .html / trailing-slash 301s must use
+absolute https:// when X-Forwarded-Proto=https (relative R=301 on Windows
+Apache previously leaked /C:/xampp/htdocs/… into Location — GSC “Page with
+redirect”).
+
+================================================================================
+10. SECURITY HARDENING CHECKLIST
+================================================================================
+[ ] Apache AllowOverride enabled; nested .htaccess files are active
+[ ] Confirm 403 for: /data/, /includes/, /tools/, /docs/, /workers/
+[ ] Confirm 403 for /docs/SITE-RECREATE.txt, /docs/HANDOFF.md, and /AGENTS.md
+[ ] Confirm uploads cannot execute PHP (uploads/.htaccess)
+[ ] HTTPS on production; cookies Secure
+[ ] Change all handoff admin passwords; store only in a password manager
+[ ] Review users.json permissions; deactivate unused accounts
+[ ] Review blocked IPs / activity log after go-live
+[ ] Do not commit data/*.json, .admin_password_hash, or uploads/*
+[ ] Do not expose this recreate file via public links or discovery files
+[ ] Root rewrite deny for tools|docs|data|includes|workers still present
+
+================================================================================
+11. HANDOFF CHECKLIST
+================================================================================
+Plain-language version for a non-developer successor: docs/HANDOFF.md
+
+1. Log into /admin/ and change passwords (and review users).
+2. Confirm Apache serves data/.htaccess, includes/.htaccess, uploads/.htaccess,
+   tools/.htaccess, docs/.htaccess (direct access should 403).
+3. Replace placeholder CMS content before launch.
+4. Set Join Now + Purchase Tickets links under Home / AU Royale.
+5. Export newsletter emails from Admin → Newsletter (CSV).
+6. Confirm docs/SITE-RECREATE.txt exists and matches current behavior.
+
+================================================================================
+12. RECREATE FROM SCRATCH (STEP-BY-STEP)
+================================================================================
+Any Apache + PHP host: php tools/check-hosting.php → php tools/pack-deploy.php
+  [--with-data] [--with-uploads], then upload/extract the zip at the web root.
+
+A. Server
+  1. Provision Apache + PHP (+ GD) with AllowOverride for the vhost docroot.
+  2. Point docroot at this project root (where index.html lives).
+  3. Ensure data/ and uploads/ are writable by the PHP user.
+  4. Enable HTTPS (and Cloudflare if used).
+
+B. Files
+  1. Upload/deploy the full tree (git clone or zip), INCLUDING denied dirs
+     (includes, tools, docs, data/.htaccess, uploads/.htaccess). Prefer
+     tools/pack-deploy.php (excludes .git, node_modules/).
+  2. Do not rely on the PHP built-in server for production (.htaccess ignored).
+  3. Verify deny checklist (§10). Run php tools/check-hosting.php when CLI exists.
+
+C. First boot
+  1. Visit / — public HTML should load; site.js fetches /api/content.php
+     (defaults if no content.json yet).
+  2. Visit /admin/ — sign in with handoff credentials; CHANGE PASSWORDS.
+  3. Fill CMS sections; upload logo/media; set Join Now + ticket links.
+  4. Test newsletter, FAQ ask, events next-up, gallery lightbox, merch sheet.
+  5. Optional: Admin → Backup to download a zip after content is ready.
+
+D. Ongoing
+  1. Edit via admin for content; use git/deploy for code/CSS/JS.
+  2. After CSS/JS edits: bump-assets --bump; check-maintenance.
+  3. After chrome edits: sync the chrome blocks from index.html → all pages.
+  4. After any meaningful behavior/structure/ops change: update
+     docs/SITE-RECREATE.txt and the short notes in AGENTS.md.
+
+E. Reset content only
+  - Delete data/content.json (defaults return). Users/uploads/newsletters
+    are separate files — do not delete unless intentional.
+
+F. Backup / restore runbook (Admin → Backup; manual — there is no cron)
+  What the zip contains (includes/backup.php):
+    data/content.json, newsletters.json, newsletter_drafts.json,
+    newsletter_unsub_requests.json, faq_inbox.json, users.json,
+    construction_messages.json, blocked_ips.json, scheduled_publish.json,
+    activity_log.json, mail/<mailbox>.json, .admin_password_hash,
+    uploads/* (png jpg jpeg webp gif mp4 webm mov mp3 m4a ogg wav),
+    manifest.json.
+  NOT in the zip — recreate by hand after a rebuild:
+    data/.mail_inbound_secret (regenerated on first /admin/ load; only matters
+    if the Mail Worker is ever actually deployed),
+    rate-limit / login-attempt files (harmless to lose),
+    anything under includes/ or the code tree itself (deploy that from git).
+  Restore (root only, Admin → Backup → Import):
+    1. Take a fresh backup of the CURRENT server first — restore is destructive.
+    2. Import overwrites every file listed above and DELETES all existing
+       uploads before writing the zip's uploads back.
+    3. "Also restore admin password" is opt-in; leave it off unless the target
+       server should adopt the backup's root password. Ignored when
+       ADMIN_PASSWORD_HASH env locks the password.
+    4. After import the admin reloads. Re-check: Site mode (construction),
+       scheduled publishes, mail secret, then sign-in for each user.
+  Cadence: download a zip before any code deploy and after big content pushes.
+
+================================================================================
+13. AGENT STANDING RULE
+================================================================================
+Agents MUST update docs/SITE-RECREATE.txt whenever they change:
+  - Public page set, chrome rules, or rewrite/clean-URL behavior
+  - Brand tokens, fonts, or theme (vsa-theme) behavior
+  - CMS sections/fields, APIs, admin tabs, permissions
+  - Auth, CSRF, blocked IPs, activity log, construction mode, rate limits
+  - Upload/optimization/security deny paths
+  - Cache-bust / maintenance tooling workflow
+  - Handoff or recreate steps
+
+Do not invent features in this file — survey the repo. Do not add secrets.
+Do not commit unless the user asks.
+
+================================================================================
+END OF SITE-RECREATE.txt
+================================================================================

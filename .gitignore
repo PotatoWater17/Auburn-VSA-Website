@@ -1,0 +1,61 @@
+# Runtime CMS content (regenerated from defaults on first run); keep data/.htaccess
+data/content.json
+data/scheduled_publish.json
+data/scheduled_publish.json.tmp
+data/newsletters.json
+data/newsletter_drafts.json
+data/newsletter_unsub_requests.json
+data/faq_inbox.json
+data/users.json
+data/users.json.tmp
+data/.admin_password_hash
+data/admin_login_attempts.json
+data/admin_login_attempts.json.tmp
+data/public_api_rate.json
+data/public_api_rate.json.tmp
+data/construction_messages.json
+data/construction_messages.json.tmp
+data/blocked_ips.json
+data/blocked_ips.json.tmp
+data/construction_rate.json
+data/construction_rate.json.tmp
+data/activity_log.json
+data/activity_log.json.tmp
+data/error_log.json
+data/error_log.json.tmp
+data/uptime.json
+data/uptime.json.tmp
+data/construction_login_attempts.json
+data/construction_login_attempts.json.tmp
+data/mail/*.json
+data/mail/*.json.tmp
+data/.mail_inbound_secret
+
+# Uploaded images (runtime) — keep the folder, ignore its contents
+uploads/*
+!uploads/.gitkeep
+!uploads/.htaccess
+
+# Deploy packs from tools/pack-deploy.php
+auburn-vsa-deploy.zip
+auburn-vsa-deploy-*.zip
+
+# Local portable Node (ops helper; not shipped)
+tools/.node/
+
+# Wrangler local state for the mail worker (contains Cloudflare account id/email)
+workers/**/.wrangler/
+workers/**/node_modules/
+workers/**/.dev.vars
+
+# Local scratch / captures (not part of the live site)
+_ui_*.png
+
+# Developer-private recovery service (randomized local route; never deploy/commit)
+/svc-????????????????/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

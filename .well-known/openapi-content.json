@@ -1,0 +1,31 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Auburn VSA Public Content API",
+    "description": "Read-only JSON used by the Auburn Vietnamese Student Association public website. Returns site copy, teams, events, gallery, merch, FAQs, and branding.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "https://www.auburnvsa.com" }
+  ],
+  "paths": {
+    "/api/content.php": {
+      "get": {
+        "summary": "Get public site content",
+        "operationId": "getContent",
+        "responses": {
+          "200": {
+            "description": "Full public content document",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          },
+          "304": { "description": "Not modified (ETag match)" },
+          "405": { "description": "Method not allowed" }
+        }
+      }
+    }
+  }
+}
