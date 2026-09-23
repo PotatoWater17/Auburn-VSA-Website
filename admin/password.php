@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$locked) {
       } catch (e) {}
     })();
     </script>
-    <link rel="stylesheet" href="../assets/css/admin.css?v=20260818b">
+    <link rel="stylesheet" href="../assets/css/admin.css?v=20260923f">
 </head>
 <body>
     <header class="admin-header">

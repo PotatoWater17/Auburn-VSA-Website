@@ -277,11 +277,10 @@ Admin console tabs (admin/index.php + admin.js PAGES):
   Dashboard landing: status, attention, ring charts at a glance, quick tasks;
     Last published / Last edited cards (activity log + content/schedule mtimes)
   View page links use extensionless public paths (/events, /faqs, …)
-  Media tab: all /uploads images; search by filename or usage; click → usage in
-    content, newsletter drafts, and scheduled publishes (Open tab jumps to that
-    section); Rename updates the file on disk and rewrites all matching refs;
-    Delete permanently removes the file from disk (double-confirm if in use;
-    does not auto-clear CMS references)
+  Media tab: all /uploads images; search by filename or usage; filters for
+    in-use/unused, CMS page, source (live / newsletter draft / scheduled), and
+    sort (newest / oldest / name / size / most used); multi-select checkboxes +
+    bulk delete; click → usage details; Rename / Replace / Delete as before.
   Music tab (permission: music; Ops role includes it): enable footer-logo
     easter egg, click count (3/5/7/10), track list (title / artist / audio).
     Public: N clicks on footer `.brand-logo.lg` unlocks a right-side player;
@@ -308,6 +307,11 @@ Uploads:
   GET upload.php?action=list → recent images for Admin “Library” picker
   GET admin/media.php?action=list → full library + usage map (Media tab)
   POST admin/media.php { action: delete, name } → permanent unlink from uploads/
+  POST admin/media.php { action: delete_many, names: [] } → bulk unlink (max 200)
+  POST admin/media.php { action: rename, name, newName } → rename + rewrite refs
+  POST admin/media.php { action: retarget, from, to, paths?, deleteFrom? }
+    → move refs from one upload to another (paths empty/omit = all; else
+    selected usage.path list). deleteFrom removes source when unused after.
   Images optimized via includes/image_optimize.php (needs GD)
   Max long edge: home hero 2560px; other CMS photos 2400px; Site logo 800px
   (JPEG quality ~86 for large photos). Re-upload hero after raising limits if
@@ -528,7 +532,15 @@ Events:
   - Page heading, View all, Upcoming heading, All-events modal title, and
     calendar card kicker/title/button labels are CMS-editable (events.*).
   - Carousel + view-all modal + event detail sheet (description, link, image)
-  - dateMode: scheduled | upcoming | custom (eventWhen admin control)
+  - dateMode: scheduled | upcoming | past | custom (eventWhen admin control).
+    Public site auto-labels Calendar (dateStart) events by visitor local day:
+    future date stays the formatted date; same day → "Today" (+ times);
+    from midnight after the event date → "Past event". Past stays listed
+    (sorted after live). Manual Upcoming/Past/Custom labels are unchanged.
+    Next-up excludes past. Status refresh on tab focus + hourly.
+  - STUDYBUDDY_UX (search to remove): venueFormat per event
+    (campus|online|offcampus) + public status/venue chips; home
+    data-reveal scroll polish. See docs/REVERT-STUDYBUDDY-UX.txt.
   - Per-event showOnHome: admin switch (yes/no) → home Recent Events slideshow
   - events.calendarUrl: public/embed Google Calendar URL → branded navy card +
     embed iframe on Events + “Open full calendar” (hidden when empty;

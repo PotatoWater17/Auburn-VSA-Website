@@ -69,7 +69,7 @@ if (current_user_is_root()) {
       } catch (e) {}
     })();
     </script>
-    <link rel="stylesheet" href="../assets/css/admin.css?v=20260818b">
+    <link rel="stylesheet" href="../assets/css/admin.css?v=20260923f">
 </head>
 <body class="admin-app">
     <header class="admin-header">
@@ -123,6 +123,6 @@ if (current_user_is_root()) {
       window.SITE_HEALTH = <?= json_encode($siteHealth, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
       window.SITE_UPTIME = <?= json_encode($siteUptime, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
     </script>
-    <script src="../assets/js/admin.js?v=20260818b"></script>
+    <script src="../assets/js/admin.js?v=20260923f"></script>
 </body>
 </html>

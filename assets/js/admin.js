@@ -782,6 +782,18 @@
             { key: "date", label: "When", type: "eventWhen" },
             { key: "location", label: "Location", type: "text" },
             {
+              key: "venueFormat",
+              label: "Venue type (badge on public cards)",
+              hint: "Optional pill: On campus / Online / Off campus. Search STUDYBUDDY_UX to remove.",
+              type: "select",
+              options: [
+                { value: "", label: "(no badge)" },
+                { value: "campus", label: "On campus" },
+                { value: "online", label: "Online" },
+                { value: "offcampus", label: "Off campus" },
+              ],
+            },
+            {
               key: "description",
               label: "Description (shown in the event popup)",
               type: "textarea",
@@ -3314,6 +3326,7 @@
         close.focus();
       } catch (err) {}
     }, 30);
+    return overlay;
   }
 
   function downloadBlob(filename, blob) {
@@ -6444,7 +6457,7 @@
     wrap.appendChild(
       el("p", {
         class: "section-desc",
-        text: "Everything in /uploads. Click an image for size, date, and every place it is used in the CMS (plus newsletter drafts and scheduled publishes).",
+        text: "Everything in /uploads. Check images to multi-select and bulk-delete, or click one for details, rename, replace, and usage.",
       }),
     );
 
@@ -6463,11 +6476,59 @@
     ].forEach(function (opt) {
       filterSelect.appendChild(el("option", { value: opt.v, text: opt.t }));
     });
+    var pageFilter = el("select", {
+      class: "media-library-filter-select",
+      "aria-label": "Filter by page",
+    });
+    pageFilter.appendChild(el("option", { value: "", text: "Any page" }));
+    var sourceFilter = el("select", {
+      class: "media-library-filter-select",
+      "aria-label": "Filter by source",
+    });
+    [
+      { v: "", t: "Any source" },
+      { v: "content", t: "Live CMS" },
+      { v: "newsletter-draft", t: "Newsletter draft" },
+      { v: "scheduled-publish", t: "Scheduled publish" },
+    ].forEach(function (opt) {
+      sourceFilter.appendChild(el("option", { value: opt.v, text: opt.t }));
+    });
+    var sortSelect = el("select", {
+      class: "media-library-filter-select",
+      "aria-label": "Sort images",
+    });
+    [
+      { v: "newest", t: "Newest first" },
+      { v: "oldest", t: "Oldest first" },
+      { v: "name", t: "Name A–Z" },
+      { v: "size", t: "Largest first" },
+      { v: "used", t: "Most used" },
+    ].forEach(function (opt) {
+      sortSelect.appendChild(el("option", { value: opt.v, text: opt.t }));
+    });
     var refreshBtn = el("button", { type: "button", class: "btn-ghost", text: "Refresh" });
     toolbar.appendChild(filter);
     toolbar.appendChild(filterSelect);
+    toolbar.appendChild(pageFilter);
+    toolbar.appendChild(sourceFilter);
+    toolbar.appendChild(sortSelect);
     toolbar.appendChild(refreshBtn);
     wrap.appendChild(toolbar);
+
+    var bulkBar = el("div", { class: "media-bulk-bar hidden", "aria-live": "polite" });
+    var bulkCount = el("span", { class: "media-bulk-count", text: "0 selected" });
+    var bulkSelectVisible = el("button", { type: "button", class: "linkish", text: "Select visible" });
+    var bulkClear = el("button", { type: "button", class: "linkish", text: "Clear" });
+    var bulkDelete = el("button", {
+      type: "button",
+      class: "btn btn-orange sm media-bulk-delete",
+      text: "Delete selected",
+    });
+    bulkBar.appendChild(bulkCount);
+    bulkBar.appendChild(bulkSelectVisible);
+    bulkBar.appendChild(bulkClear);
+    bulkBar.appendChild(bulkDelete);
+    wrap.appendChild(bulkBar);
 
     var summary = el("p", { class: "muted media-library-summary", text: "Loading…" });
     var status = el("p", { class: "muted media-library-status", text: "" });
@@ -6478,6 +6539,160 @@
     mount.appendChild(wrap);
 
     var items = [];
+    var selectedNames = {};
+    var lastShown = [];
+
+    function selectedList() {
+      return Object.keys(selectedNames).filter(function (n) {
+        return selectedNames[n];
+      });
+    }
+
+    function setSelected(name, on) {
+      if (!name) return;
+      if (on) selectedNames[name] = true;
+      else delete selectedNames[name];
+      syncBulkBar();
+    }
+
+    function clearSelection() {
+      selectedNames = {};
+      syncBulkBar();
+      paint();
+    }
+
+    function syncBulkBar() {
+      var n = selectedList().length;
+      bulkCount.textContent = n + " selected";
+      bulkBar.classList.toggle("hidden", n === 0);
+      bulkDelete.disabled = n === 0;
+      grid.classList.toggle("is-selecting", n > 0);
+    }
+
+    function mediaPageLabel(pageId) {
+      var map = {
+        dashboard: "Dashboard",
+        site: "Site",
+        home: "Home",
+        team: "Team",
+        events: "Events",
+        royale: "AU Royale",
+        gallery: "Gallery",
+        merch: "Merch",
+        faqs: "FAQs",
+        subscribers: "Newsletter",
+        publish: "Publish",
+        media: "Media",
+        music: "Music",
+        backup: "Backup",
+        users: "Users",
+        "faq-inbox": "FAQ Inbox",
+        messages: "Messages",
+        "blocked-ips": "Blocked IPs",
+        mail: "Mail",
+        activity: "Activity",
+      };
+      if (map[pageId]) return map[pageId];
+      return String(pageId || "")
+        .replace(/[-_]/g, " ")
+        .replace(/\b\w/g, function (c) {
+          return c.toUpperCase();
+        });
+    }
+
+    function rebuildPageFilterOptions() {
+      var prev = pageFilter.value || "";
+      var pages = {};
+      items.forEach(function (item) {
+        var usages = Array.isArray(item.usages) ? item.usages : [];
+        usages.forEach(function (u) {
+          var p = String((u && u.page) || "").trim();
+          if (p) pages[p] = true;
+        });
+      });
+      var ids = Object.keys(pages).sort(function (a, b) {
+        return mediaPageLabel(a).localeCompare(mediaPageLabel(b));
+      });
+      pageFilter.innerHTML = "";
+      pageFilter.appendChild(el("option", { value: "", text: "Any page" }));
+      ids.forEach(function (id) {
+        pageFilter.appendChild(el("option", { value: id, text: mediaPageLabel(id) }));
+      });
+      if (prev && pages[prev]) pageFilter.value = prev;
+      else pageFilter.value = "";
+    }
+
+    function itemMatchesPage(item, pageId) {
+      if (!pageId) return true;
+      var usages = Array.isArray(item.usages) ? item.usages : [];
+      for (var i = 0; i < usages.length; i++) {
+        if (String((usages[i] && usages[i].page) || "") === pageId) return true;
+      }
+      return false;
+    }
+
+    function itemMatchesSource(item, source) {
+      if (!source) return true;
+      var usages = Array.isArray(item.usages) ? item.usages : [];
+      for (var i = 0; i < usages.length; i++) {
+        var src = String((usages[i] && usages[i].source) || "content");
+        if (src === source) return true;
+      }
+      return false;
+    }
+
+    function sortMediaItems(list) {
+      var mode = sortSelect.value || "newest";
+      var sorted = list.slice();
+      sorted.sort(function (a, b) {
+        if (mode === "oldest") return (a.mtime || 0) - (b.mtime || 0);
+        if (mode === "name") {
+          return String(a.name || "").localeCompare(String(b.name || ""), undefined, {
+            sensitivity: "base",
+          });
+        }
+        if (mode === "size") return (b.size || 0) - (a.size || 0);
+        if (mode === "used") {
+          var du = (b.usageCount || 0) - (a.usageCount || 0);
+          if (du) return du;
+          return (b.mtime || 0) - (a.mtime || 0);
+        }
+        return (b.mtime || 0) - (a.mtime || 0);
+      });
+      return sorted;
+    }
+
+    function filteredShown() {
+      var q = (filter.value || "").trim().toLowerCase();
+      var mode = filterSelect.value || "all";
+      var pageId = pageFilter.value || "";
+      var source = sourceFilter.value || "";
+      var list = items.filter(function (item) {
+        if (mode === "used" && !(item.usageCount > 0)) return false;
+        if (mode === "unused" && item.usageCount > 0) return false;
+        if (!itemMatchesPage(item, pageId)) return false;
+        if (!itemMatchesSource(item, source)) return false;
+        if (!q) return true;
+        if (String(item.name || "").toLowerCase().indexOf(q) !== -1) return true;
+        var usages = Array.isArray(item.usages) ? item.usages : [];
+        for (var ui = 0; ui < usages.length; ui++) {
+          var u = usages[ui] || {};
+          var hay =
+            String(u.label || "") +
+            " " +
+            String(u.path || "") +
+            " " +
+            String(u.source || "") +
+            " " +
+            String(u.page || "") +
+            " " +
+            mediaPageLabel(u.page || "");
+          if (hay.toLowerCase().indexOf(q) !== -1) return true;
+        }
+        return false;
+      });
+      return sortMediaItems(list);
+    }
 
     function openMediaDetail(item) {
       var body = el("div", { class: "media-detail" });
@@ -6728,6 +6943,7 @@
 
       body.appendChild(el("h3", { class: "media-detail-subhead", text: "Where it’s used" }));
       var usages = Array.isArray(item.usages) ? item.usages : [];
+      var usageChecks = [];
       if (!usages.length) {
         body.appendChild(
           el("p", {
@@ -6737,21 +6953,35 @@
         );
       } else {
         var list = el("ul", { class: "media-usage-list" });
-        usages.forEach(function (u) {
+        usages.forEach(function (u, ui) {
           var li = el("li", { class: "media-usage-item" });
           var main = el("div", { class: "media-usage-main" });
-          main.appendChild(el("strong", { text: u.label || u.path || "Content" }));
+          var checkId = "media-usage-check-" + ui;
+          var check = el("input", {
+            type: "checkbox",
+            class: "media-usage-check",
+            id: checkId,
+            checked: "checked",
+          });
+          check.setAttribute("data-path", u.path || "");
+          usageChecks.push(check);
+          var checkLabel = el("label", { class: "media-usage-check-label", for: checkId });
+          checkLabel.appendChild(check);
+          var textCol = el("div", { class: "media-usage-text" });
+          textCol.appendChild(el("strong", { text: u.label || u.path || "Content" }));
           if (u.path) {
-            main.appendChild(el("span", { class: "muted media-usage-path", text: u.path }));
+            textCol.appendChild(el("span", { class: "muted media-usage-path", text: u.path }));
           }
           if (u.source && u.source !== "content") {
-            main.appendChild(
+            textCol.appendChild(
               el("span", {
                 class: "media-usage-source",
                 text: u.source === "newsletter-draft" ? "Newsletter draft" : "Scheduled publish",
               }),
             );
           }
+          checkLabel.appendChild(textCol);
+          main.appendChild(checkLabel);
           li.appendChild(main);
           if (u.page) {
             var go = el("button", {
@@ -6774,53 +7004,413 @@
           list.appendChild(li);
         });
         body.appendChild(list);
+        var selRow = el("div", { class: "media-usage-select-row" });
+        var selAll = el("button", { type: "button", class: "linkish", text: "Select all" });
+        var selNone = el("button", { type: "button", class: "linkish", text: "Select none" });
+        selAll.addEventListener("click", function () {
+          usageChecks.forEach(function (c) {
+            c.checked = true;
+          });
+        });
+        selNone.addEventListener("click", function () {
+          usageChecks.forEach(function (c) {
+            c.checked = false;
+          });
+        });
+        selRow.appendChild(selAll);
+        selRow.appendChild(selNone);
+        body.appendChild(selRow);
       }
+
+      // Replace / move references to another library image
+      var replaceBox = el("div", { class: "media-replace-box field" });
+      replaceBox.appendChild(el("h3", { class: "media-detail-subhead", text: "Replace with library image" }));
+      replaceBox.appendChild(
+        el("p", {
+          class: "muted media-rename-hint",
+          text:
+            "Point the checked places (or all uses) at another image already in /uploads. The old file stays unless you delete it below.",
+        }),
+      );
+      var targetPreview = el("div", { class: "media-replace-target muted", text: "No target selected." });
+      var selectedTarget = null;
+      var pickBtn = el("button", {
+        type: "button",
+        class: "btn-outline sm",
+        text: "Choose library image…",
+      });
+      var clearTargetBtn = el("button", {
+        type: "button",
+        class: "linkish",
+        text: "Clear",
+      });
+      clearTargetBtn.hidden = true;
+      function setReplaceTarget(file) {
+        selectedTarget = file || null;
+        targetPreview.innerHTML = "";
+        if (!selectedTarget) {
+          targetPreview.className = "media-replace-target muted";
+          targetPreview.textContent = "No target selected.";
+          clearTargetBtn.hidden = true;
+          return;
+        }
+        targetPreview.className = "media-replace-target is-set";
+        var thumb = el("img", {
+          src: previewSrc(selectedTarget.url),
+          alt: selectedTarget.name || "",
+          class: "media-replace-thumb",
+        });
+        var info = el("div", { class: "media-replace-target-info" });
+        info.appendChild(el("strong", { text: selectedTarget.name || "Image" }));
+        info.appendChild(
+          el("span", {
+            class: "muted",
+            text:
+              (selectedTarget.usageCount || 0) +
+              " existing use" +
+              ((selectedTarget.usageCount || 0) === 1 ? "" : "s"),
+          }),
+        );
+        targetPreview.appendChild(thumb);
+        targetPreview.appendChild(info);
+        clearTargetBtn.hidden = false;
+      }
+      clearTargetBtn.addEventListener("click", function () {
+        setReplaceTarget(null);
+      });
+      pickBtn.addEventListener("click", function () {
+        openMediaLibraryPicker({
+          excludeName: item.name || "",
+          onPick: function (file) {
+            setReplaceTarget(file);
+          },
+        });
+      });
+      var pickRow = el("div", { class: "media-detail-actions" });
+      pickRow.appendChild(pickBtn);
+      pickRow.appendChild(clearTargetBtn);
+      replaceBox.appendChild(pickRow);
+      replaceBox.appendChild(targetPreview);
+
+      var scopeAll = el("input", { type: "radio", name: "media-replace-scope", id: "media-replace-all", value: "all" });
+      scopeAll.checked = true;
+      var scopeSel = el("input", {
+        type: "radio",
+        name: "media-replace-scope",
+        id: "media-replace-selected",
+        value: "selected",
+      });
+      if (!usages.length) {
+        scopeSel.disabled = true;
+      }
+      var scopeRow = el("div", { class: "media-replace-scope" });
+      var labAll = el("label", { class: "media-replace-scope-label", for: "media-replace-all" });
+      labAll.appendChild(scopeAll);
+      labAll.appendChild(document.createTextNode(" All places (" + (item.usageCount || 0) + ")"));
+      var labSel = el("label", { class: "media-replace-scope-label", for: "media-replace-selected" });
+      labSel.appendChild(scopeSel);
+      labSel.appendChild(document.createTextNode(" Only checked places below"));
+      scopeRow.appendChild(labAll);
+      scopeRow.appendChild(labSel);
+      replaceBox.appendChild(scopeRow);
+
+      var deleteAfter = el("input", {
+        type: "checkbox",
+        id: "media-replace-delete",
+        class: "media-replace-delete",
+      });
+      var deleteLab = el("label", { class: "media-replace-scope-label", for: "media-replace-delete" });
+      deleteAfter.disabled = !usages.length;
+      deleteLab.appendChild(deleteAfter);
+      deleteLab.appendChild(
+        document.createTextNode(" Delete this file after if nothing still points at it"),
+      );
+      replaceBox.appendChild(deleteLab);
+
+      var replaceBtn = el("button", {
+        type: "button",
+        class: "btn btn-orange sm",
+        text: "Replace references",
+      });
+      replaceBtn.disabled = !usages.length;
+      replaceBtn.addEventListener("click", function () {
+        if (!selectedTarget || !selectedTarget.name) {
+          alert("Choose a library image to replace with.");
+          return;
+        }
+        if (selectedTarget.name === item.name) {
+          alert("Pick a different image.");
+          return;
+        }
+        var scope = scopeSel.checked ? "selected" : "all";
+        var paths = null;
+        var placeCount = Number(item.usageCount) || 0;
+        if (scope === "selected") {
+          paths = [];
+          usageChecks.forEach(function (c) {
+            if (c.checked && c.getAttribute("data-path")) {
+              paths.push(c.getAttribute("data-path"));
+            }
+          });
+          if (!paths.length) {
+            alert("Check at least one place to update.");
+            return;
+          }
+          placeCount = paths.length;
+        }
+        var msg =
+          'Move ' +
+          placeCount +
+          " reference" +
+          (placeCount === 1 ? "" : "s") +
+          ' from\n"' +
+          (item.name || "") +
+          '"\nto\n"' +
+          selectedTarget.name +
+          '"?';
+        if (deleteAfter.checked) {
+          msg += "\n\nIf nothing left points at the old file, it will be deleted from /uploads.";
+        }
+        if (!confirm(msg)) return;
+        replaceBtn.disabled = true;
+        renameBtn.disabled = true;
+        deleteBtn.disabled = true;
+        pickBtn.disabled = true;
+        fetch("media.php", {
+          method: "POST",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: {
+            "content-type": "application/json",
+            "X-CSRF-Token": window.CSRF_TOKEN || "",
+          },
+          body: JSON.stringify({
+            action: "retarget",
+            from: item.name,
+            to: selectedTarget.name,
+            paths: paths,
+            deleteFrom: !!deleteAfter.checked,
+            csrf: window.CSRF_TOKEN || "",
+          }),
+        })
+          .then(function (r) {
+            return r.json().then(function (data) {
+              if (!r.ok || !data || !data.ok) {
+                throw new Error((data && data.error) || "Could not replace references.");
+              }
+              return data;
+            });
+          })
+          .then(function (data) {
+            var sheet = document.querySelector(".admin-sheet.is-open");
+            if (sheet) {
+              sheet.setAttribute("data-closing", "1");
+              sheet.classList.remove("is-open");
+              if (sheet.parentNode) sheet.parentNode.removeChild(sheet);
+              document.body.classList.remove("admin-sheet-lock");
+            }
+            status.className = "save-status ok media-library-status";
+            status.textContent =
+              "Updated " +
+              (data.rewritten || 0) +
+              " reference" +
+              ((data.rewritten || 0) === 1 ? "" : "s") +
+              " → " +
+              (data.to || selectedTarget.name) +
+              (data.remaining
+                ? " · " + data.remaining + " still on old file"
+                : "") +
+              (data.deleted ? " · old file deleted" : "") +
+              ".";
+            if (typeof content === "object" && content && data.from && data.to) {
+              var newUrl = data.url || "uploads/" + data.to;
+              if (scope === "all") {
+                (function rewriteLocal(node, oldN, nextUrl) {
+                  if (typeof node === "string") {
+                    if (node === "uploads/" + oldN || node === oldN) return nextUrl;
+                    if (node.slice(-("/" + oldN).length) === "/" + oldN && /uploads\//i.test(node)) {
+                      return node.replace(
+                        new RegExp(oldN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"),
+                        data.to,
+                      );
+                    }
+                    return node;
+                  }
+                  if (!node || typeof node !== "object") return node;
+                  if (Array.isArray(node)) {
+                    for (var i = 0; i < node.length; i++) node[i] = rewriteLocal(node[i], oldN, nextUrl);
+                    return node;
+                  }
+                  Object.keys(node).forEach(function (k) {
+                    node[k] = rewriteLocal(node[k], oldN, nextUrl);
+                  });
+                  return node;
+                })(content, data.from, newUrl);
+              } else if (paths && paths.length) {
+                paths.forEach(function (pathStr) {
+                  mediaSetUploadAtPath(content, pathStr, data.from, newUrl);
+                });
+              }
+            }
+            load();
+          })
+          .catch(function (err) {
+            replaceBtn.disabled = false;
+            renameBtn.disabled = false;
+            deleteBtn.disabled = false;
+            pickBtn.disabled = false;
+            alert((err && err.message) || "Could not replace references.");
+          });
+      });
+      replaceBox.appendChild(replaceBtn);
+      body.appendChild(replaceBox);
 
       openAdminInfoSheet(item.name || "Image details", body);
     }
 
+    /** Set a media path like home.whyJoin[0].image when it still points at oldName. */
+    function mediaSetUploadAtPath(root, pathStr, oldName, newUrl) {
+      if (!root || !pathStr) return;
+      var tokens = [];
+      String(pathStr).replace(/([^.\[\]]+)|\[(\d+)\]/g, function (_, key, idx) {
+        if (key) tokens.push(key);
+        if (idx !== undefined && idx !== "") tokens.push(parseInt(idx, 10));
+        return "";
+      });
+      if (!tokens.length) return;
+      var cur = root;
+      for (var i = 0; i < tokens.length - 1; i++) {
+        if (cur == null || typeof cur !== "object") return;
+        cur = cur[tokens[i]];
+      }
+      var last = tokens[tokens.length - 1];
+      if (cur == null || typeof cur !== "object") return;
+      if (!(last in cur)) return;
+      var val = cur[last];
+      if (typeof val !== "string") return;
+      if (val === "uploads/" + oldName || val === oldName) {
+        cur[last] = newUrl;
+        return;
+      }
+      if (val.slice(-("/" + oldName).length) === "/" + oldName && /uploads\//i.test(val)) {
+        cur[last] = newUrl;
+      }
+    }
+
+    function openMediaLibraryPicker(opts) {
+      opts = opts || {};
+      var exclude = String(opts.excludeName || "");
+      var panel = el("div", { class: "media-picker-panel" });
+      panel.appendChild(
+        el("p", {
+          class: "muted",
+          text: "Click an image already on the site to use it as the replacement.",
+        }),
+      );
+      var search = el("input", {
+        type: "search",
+        class: "media-library-filter",
+        placeholder: "Filter by filename…",
+        "aria-label": "Filter library images",
+      });
+      panel.appendChild(search);
+      var grid = el("div", { class: "media-picker-grid", role: "list" });
+      panel.appendChild(grid);
+      var sheet = openAdminInfoSheet("Choose library image", panel);
+
+      function paintPicker() {
+        grid.innerHTML = "";
+        var q = (search.value || "").trim().toLowerCase();
+        var list = (items || []).filter(function (it) {
+          if (!it || !it.name || it.name === exclude) return false;
+          if (!q) return true;
+          return String(it.name).toLowerCase().indexOf(q) !== -1;
+        });
+        if (!list.length) {
+          grid.appendChild(el("p", { class: "muted", text: "No other images match." }));
+          return;
+        }
+        list.forEach(function (it) {
+          var card = el("button", {
+            type: "button",
+            class: "media-picker-card",
+            role: "listitem",
+          });
+          card.appendChild(
+            el("img", { src: previewSrc(it.url), alt: "", class: "media-picker-card-img" }),
+          );
+          card.appendChild(el("span", { class: "media-picker-card-name", text: it.name }));
+          card.addEventListener("click", function () {
+            if (pickerSheet && pickerSheet.parentNode) {
+              pickerSheet.setAttribute("data-closing", "1");
+              pickerSheet.classList.remove("is-open");
+              pickerSheet.parentNode.removeChild(pickerSheet);
+              // Keep body lock if the detail sheet is still open underneath.
+              if (!document.querySelector(".admin-sheet.is-open")) {
+                document.body.classList.remove("admin-sheet-lock");
+              }
+            }
+            if (typeof opts.onPick === "function") opts.onPick(it);
+          });
+          grid.appendChild(card);
+        });
+      }
+      search.addEventListener("input", paintPicker);
+      paintPicker();
+      var pickerSheet = sheet;
+    }
+
     function paint() {
       grid.innerHTML = "";
-      var q = (filter.value || "").trim().toLowerCase();
-      var mode = filterSelect.value || "all";
-      var shown = items.filter(function (item) {
-        if (mode === "used" && !(item.usageCount > 0)) return false;
-        if (mode === "unused" && item.usageCount > 0) return false;
-        if (!q) return true;
-        if (String(item.name || "").toLowerCase().indexOf(q) !== -1) return true;
-        var usages = Array.isArray(item.usages) ? item.usages : [];
-        for (var ui = 0; ui < usages.length; ui++) {
-          var u = usages[ui] || {};
-          var hay =
-            String(u.label || "") +
-            " " +
-            String(u.path || "") +
-            " " +
-            String(u.source || "") +
-            " " +
-            String(u.page || "");
-          if (hay.toLowerCase().indexOf(q) !== -1) return true;
-        }
-        return false;
-      });
+      var shown = filteredShown();
+      lastShown = shown;
 
       if (!items.length) {
         status.textContent = "No images in /uploads yet. Upload from any page image control.";
         status.className = "muted media-library-status";
+        syncBulkBar();
         return;
       }
       if (!shown.length) {
         status.textContent = "No images match this filter.";
         status.className = "muted media-library-status";
+        syncBulkBar();
         return;
       }
-      status.textContent = "";
+      var total = items.length;
+      if (shown.length !== total) {
+        status.className = "muted media-library-status";
+        status.textContent = "Showing " + shown.length + " of " + total + ".";
+      } else {
+        status.textContent = "";
+      }
       shown.forEach(function (item) {
-        var btn = el("button", {
-          type: "button",
-          class: "media-library-card" + (item.usageCount > 0 ? " is-used" : " is-unused"),
+        var name = item.name || "";
+        var isSel = !!selectedNames[name];
+        var btn = el("div", {
+          class:
+            "media-library-card" +
+            (item.usageCount > 0 ? " is-used" : " is-unused") +
+            (isSel ? " is-selected" : ""),
           role: "listitem",
-          title: "Details for " + (item.name || "image"),
+        });
+        var check = el("input", {
+          type: "checkbox",
+          class: "media-library-card-check",
+          "aria-label": "Select " + name,
+        });
+        if (isSel) check.checked = true;
+        check.addEventListener("click", function (e) {
+          e.stopPropagation();
+        });
+        check.addEventListener("change", function () {
+          setSelected(name, check.checked);
+          btn.classList.toggle("is-selected", check.checked);
+        });
+        var openBtn = el("button", {
+          type: "button",
+          class: "media-library-card-open",
+          title: "Details for " + name,
         });
         var img = el("img", {
           src: previewSrc(item.url),
@@ -6829,7 +7419,7 @@
           draggable: "false",
         });
         var foot = el("div", { class: "media-library-card-foot" });
-        foot.appendChild(el("span", { class: "media-library-card-name", text: item.name || "—" }));
+        foot.appendChild(el("span", { class: "media-library-card-name", text: name || "—" }));
         foot.appendChild(
           el("span", {
             class: "media-library-card-meta",
@@ -6841,13 +7431,103 @@
               formatBytes(item.size),
           }),
         );
-        btn.appendChild(img);
-        btn.appendChild(foot);
-        btn.addEventListener("click", function () {
+        openBtn.appendChild(img);
+        openBtn.appendChild(foot);
+        openBtn.addEventListener("click", function () {
           openMediaDetail(item);
         });
+        btn.appendChild(check);
+        btn.appendChild(openBtn);
         grid.appendChild(btn);
       });
+      syncBulkBar();
+    }
+
+    function bulkDeleteSelected() {
+      var names = selectedList();
+      if (!names.length) return;
+      var used = 0;
+      names.forEach(function (n) {
+        var found = null;
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].name === n) {
+            found = items[i];
+            break;
+          }
+        }
+        if (found && (found.usageCount || 0) > 0) used++;
+      });
+      var msg =
+        "Permanently delete " +
+        names.length +
+        " image" +
+        (names.length === 1 ? "" : "s") +
+        " from /uploads?\n\nThis cannot be undone.";
+      if (used > 0) {
+        msg +=
+          "\n\n" +
+          used +
+          " of them are still referenced in the CMS / drafts / schedule — those spots will break until you replace the image.";
+      }
+      if (!confirm(msg)) return;
+      if (used > 0 && !confirm("Final confirmation: delete " + names.length + " file(s), including in-use ones?")) {
+        return;
+      }
+      bulkDelete.disabled = true;
+      status.className = "muted media-library-status";
+      status.textContent = "Deleting " + names.length + "…";
+      fetch("media.php", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          "content-type": "application/json",
+          "X-CSRF-Token": window.CSRF_TOKEN || "",
+        },
+        body: JSON.stringify({
+          action: "delete_many",
+          names: names,
+          csrf: window.CSRF_TOKEN || "",
+        }),
+      })
+        .then(function (r) {
+          return r.json().then(function (data) {
+            if (!r.ok || !data || !data.ok) {
+              throw new Error((data && data.error) || "Could not delete.");
+            }
+            return data;
+          });
+        })
+        .then(function (data) {
+          var n = data.deletedCount || (data.deleted && data.deleted.length) || 0;
+          var failN = (data.failed && data.failed.length) || 0;
+          status.className = "save-status ok media-library-status";
+          status.textContent =
+            "Deleted " +
+            n +
+            " file" +
+            (n === 1 ? "" : "s") +
+            (failN ? " · " + failN + " failed" : "") +
+            ".";
+          clearSelection();
+          load();
+        })
+        .catch(function (err) {
+          bulkDelete.disabled = false;
+          syncBulkBar();
+          alert((err && err.message) || "Could not delete.");
+        });
+    }
+
+    bulkSelectVisible.addEventListener("click", bulkSelectVisibleHandler);
+    bulkClear.addEventListener("click", clearSelection);
+    bulkDelete.addEventListener("click", bulkDeleteSelected);
+
+    function bulkSelectVisibleHandler() {
+      lastShown.forEach(function (item) {
+        if (item && item.name) selectedNames[item.name] = true;
+      });
+      paint();
     }
 
     function load() {
@@ -6869,6 +7549,12 @@
         })
         .then(function (data) {
           items = Array.isArray(data.items) ? data.items : [];
+          var still = {};
+          items.forEach(function (it) {
+            if (it && it.name && selectedNames[it.name]) still[it.name] = true;
+          });
+          selectedNames = still;
+          rebuildPageFilterOptions();
           summary.textContent =
             (data.count || items.length) +
             " image" +
@@ -6889,6 +7575,9 @@
 
     filter.addEventListener("input", paint);
     filterSelect.addEventListener("change", paint);
+    pageFilter.addEventListener("change", paint);
+    sourceFilter.addEventListener("change", paint);
+    sortSelect.addEventListener("change", paint);
     refreshBtn.addEventListener("click", load);
     load();
   }

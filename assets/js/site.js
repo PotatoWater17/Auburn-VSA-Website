@@ -3206,23 +3206,177 @@
     };
   }
 
+  function pad2(n) {
+    n = String(n);
+    return n.length < 2 ? "0" + n : n;
+  }
+
+  function localDateYmd(d) {
+    d = d || new Date();
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+
+  function formatEventTime12(hhmm) {
+    if (!hhmm || !/^\d{1,2}:\d{2}$/.test(hhmm)) return "";
+    var parts = hhmm.split(":");
+    var h = parseInt(parts[0], 10);
+    var m = parts[1];
+    if (isNaN(h)) return "";
+    var ampm = h >= 12 ? "PM" : "AM";
+    var h12 = h % 12;
+    if (h12 === 0) h12 = 12;
+    return h12 + ":" + m + " " + ampm;
+  }
+
+  /** Full weekday label for a YYYY-MM-DD calendar event (matches admin preview). */
+  function formatScheduledEventLabel(dateStart, timeStart, timeEnd) {
+    if (!dateStart) return "";
+    var d = new Date(dateStart + "T12:00:00");
+    if (isNaN(d.getTime())) return "";
+    var label = d.toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+    var t1 = formatEventTime12(timeStart);
+    var t2 = formatEventTime12(timeEnd);
+    if (t1 && t2) return label + " · " + t1 + "–" + t2;
+    if (t1) return label + " · " + t1;
+    return label;
+  }
+
+  /**
+   * Public when-label + phase from visitor local calendar day.
+   * Calendar dates (dateStart + scheduled): Upcoming → Today (same day) → Past event
+   * (past from midnight after the event date). Manual Upcoming/Past/Custom keep CMS text.
+   * Does not mutate CMS records.
+   */
+  function resolveEventWhen(ev) {
+    if (!ev) return { phase: "manual", label: "" };
+    var mode = String(ev.dateMode || "").toLowerCase();
+    var start = String(ev.dateStart || "").trim();
+    var saved = String(ev.date || "").trim();
+
+    if (mode === "upcoming") {
+      return { phase: "manual", label: saved || "Coming up" };
+    }
+    if (mode === "past") {
+      return { phase: "past", label: saved || "Past event" };
+    }
+    if (mode === "custom") {
+      return { phase: "manual", label: saved };
+    }
+
+    if (start && /^\d{4}-\d{2}-\d{2}$/.test(start)) {
+      var today = localDateYmd(new Date());
+      var t1 = formatEventTime12(ev.timeStart);
+      var t2 = formatEventTime12(ev.timeEnd);
+      var timeBit = t1 && t2 ? t1 + "–" + t2 : t1 || "";
+      if (start > today) {
+        return {
+          phase: "upcoming",
+          label: formatScheduledEventLabel(start, ev.timeStart, ev.timeEnd) || saved,
+        };
+      }
+      if (start === today) {
+        return {
+          phase: "today",
+          label: timeBit ? "Today · " + timeBit : "Today",
+        };
+      }
+      return { phase: "past", label: "Past event" };
+    }
+
+    return { phase: "manual", label: saved };
+  }
+
+  // ===== BEGIN STUDYBUDDY_UX (safe to delete chips/venue helpers + CSS/JS marked the same) =====
+  function eventIsThisWeek(ev) {
+    var start = String((ev && ev.dateStart) || "").trim();
+    if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return false;
+    var dayMs = Date.parse(start + "T12:00:00");
+    if (isNaN(dayMs)) return false;
+    var now = new Date();
+    var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    var diff = dayMs - todayStart;
+    return diff > 0 && diff <= 7 * 24 * 60 * 60 * 1000;
+  }
+
+  function eventVenueChip(ev) {
+    var raw = String((ev && ev.venueFormat) || "")
+      .toLowerCase()
+      .trim();
+    if (raw === "campus") return { mod: "campus", text: "On campus" };
+    if (raw === "online") return { mod: "online", text: "Online" };
+    if (raw === "offcampus" || raw === "off-campus") return { mod: "offcampus", text: "Off campus" };
+    return null;
+  }
+
+  /** Status + venue pills for cards / sheet / next-up (does not mutate CMS). */
+  function eventChips(ev) {
+    var chips = [];
+    var when = resolveEventWhen(ev);
+    if (when.phase === "today") {
+      chips.push({ mod: "today", text: "Today" });
+    } else if (when.phase === "past") {
+      chips.push({ mod: "past", text: "Past" });
+    } else if (when.phase === "upcoming" && eventIsThisWeek(ev)) {
+      chips.push({ mod: "week", text: "This week" });
+    }
+    var venue = eventVenueChip(ev);
+    if (venue) chips.push(venue);
+    return chips;
+  }
+
+  function eventChipsHtml(ev) {
+    var chips = eventChips(ev);
+    if (!chips.length) return "";
+    return (
+      '<div class="event-chips" aria-label="Event tags">' +
+      chips
+        .map(function (c) {
+          return (
+            '<span class="event-chip is-' +
+            escapeHtml(c.mod) +
+            '">' +
+            escapeHtml(c.text) +
+            "</span>"
+          );
+        })
+        .join("") +
+      "</div>"
+    );
+  }
+  // ===== END STUDYBUDDY_UX =====
+
+  function eventDayKey(ev) {
+    var start = String((ev && ev.dateStart) || "").trim();
+    if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return 0;
+    var ts = Date.parse(start + "T12:00:00");
+    return isNaN(ts) ? 0 : ts;
+  }
+
   function eventSortMeta(ev) {
     if (!ev) return { bucket: 9, key: 0 };
     var mode = String(ev.dateMode || "").toLowerCase();
-    var start = String(ev.dateStart || "").trim();
-    if (start) {
-      var time = String(ev.timeStart || "00:00").trim() || "00:00";
-      if (!/^\d{2}:\d{2}/.test(time)) time = "00:00";
-      var ts = Date.parse(start + "T" + time.slice(0, 5) + ":00");
-      if (!isNaN(ts)) return { bucket: 1, key: ts };
+    var when = resolveEventWhen(ev);
+    var dayKey = eventDayKey(ev);
+
+    // Live calendar events (future + today): soonest day first.
+    if (when.phase === "today" || when.phase === "upcoming") {
+      return { bucket: 1, key: dayKey || 0 };
     }
-    // Undated: Coming up first, then custom, then past — all after/before dated via buckets.
+    // Past (auto after midnight, or manual Past preset): recent past first.
+    if (when.phase === "past") {
+      return { bucket: 3, key: dayKey ? 1e15 - dayKey : 0 };
+    }
+    // Undated / custom: Coming up first, then custom — after live dated, before past.
     if (mode === "upcoming") return { bucket: 0, key: 0 };
-    if (mode === "past") return { bucket: 3, key: 0 };
     return { bucket: 2, key: 0 };
   }
 
-  /** Soonest calendar date first; undated “Coming up” before dated; past undated last. */
+  /** Soonest calendar date first; undated “Coming up” before dated; past last. */
   function sortEventsByDate(list) {
     return (list || [])
       .map(function (ev, i) {
@@ -3240,26 +3394,26 @@
   }
 
   function pickNextEvent(list) {
-    var now = Date.now() - 60 * 60 * 1000;
     var dated = [];
     var upcoming = [];
     (list || []).forEach(function (ev) {
       if (!ev) return;
-      var meta = eventSortMeta(ev);
-      if (meta.bucket === 1 && meta.key >= now) dated.push({ ev: ev, key: meta.key });
-      else if (meta.bucket === 0) upcoming.push(ev);
+      var when = resolveEventWhen(ev);
+      if (when.phase === "past") return;
+      if (when.phase === "today" || when.phase === "upcoming") {
+        dated.push({ ev: ev, key: eventDayKey(ev) || eventSortMeta(ev).key });
+        return;
+      }
+      if (String(ev.dateMode || "").toLowerCase() === "upcoming") {
+        upcoming.push(ev);
+      }
     });
     dated.sort(function (a, b) {
       return a.key - b.key;
     });
     if (dated.length) return dated[0].ev;
     if (upcoming.length) return upcoming[0];
-    return sortEventsByDate(list)[0] || null;
-  }
-
-  function pad2(n) {
-    n = String(n);
-    return n.length < 2 ? "0" + n : n;
+    return null;
   }
 
   function eventCalendarStamp(ev, end) {
@@ -3490,13 +3644,52 @@
     if (!ev) {
       strip.classList.add("is-empty", "hidden");
       strip.setAttribute("aria-hidden", "true");
+      // ===== BEGIN STUDYBUDDY_UX =====
+      var emptyChips = document.getElementById("next-up-chips");
+      if (emptyChips) {
+        emptyChips.innerHTML = "";
+        emptyChips.classList.add("hidden");
+      }
+      // ===== END STUDYBUDDY_UX =====
       return;
     }
     strip.classList.remove("is-empty", "hidden");
     strip.removeAttribute("aria-hidden");
     setText("#next-up-title", ev.name || "Auburn VSA event");
-    var meta = [ev.date, ev.location].filter(Boolean).join(" · ");
+    var whenLabel = resolveEventWhen(ev).label;
+    var meta = [whenLabel, ev.location].filter(Boolean).join(" · ");
     setText("#next-up-meta", meta);
+    // ===== BEGIN STUDYBUDDY_UX =====
+    var nextUpChips = document.getElementById("next-up-chips");
+    if (!nextUpChips) {
+      var copy = strip.querySelector(".next-up-copy");
+      if (copy) {
+        nextUpChips = document.createElement("div");
+        nextUpChips.id = "next-up-chips";
+        nextUpChips.className = "event-chips next-up-chips";
+        var metaEl = document.getElementById("next-up-meta");
+        if (metaEl && metaEl.parentNode === copy) {
+          copy.insertBefore(nextUpChips, metaEl);
+        } else {
+          copy.appendChild(nextUpChips);
+        }
+      }
+    }
+    if (nextUpChips) {
+      nextUpChips.innerHTML = eventChips(ev)
+        .map(function (c) {
+          return (
+            '<span class="event-chip is-' +
+            escapeHtml(c.mod) +
+            '">' +
+            escapeHtml(c.text) +
+            "</span>"
+          );
+        })
+        .join("");
+      nextUpChips.classList.toggle("hidden", !nextUpChips.innerHTML);
+    }
+    // ===== END STUDYBUDDY_UX =====
     var details = document.getElementById("next-up-details");
     if (details) {
       details.onclick = function () {
@@ -4848,10 +5041,13 @@
       '<div class="event-card-media">' +
       placeholder(ev.image || "", "", "w-full", "navy", ev.name || "") +
       "</div>" +
+      // ===== BEGIN STUDYBUDDY_UX =====
+      eventChipsHtml(ev) +
+      // ===== END STUDYBUDDY_UX =====
       "<h3>" +
       escapeHtml(ev.name || "") +
       "</h3><p class=\"event-card-meta\">" +
-      escapeHtml(ev.date || "") +
+      escapeHtml(resolveEventWhen(ev).label || "") +
       "</p><p class=\"event-card-meta\">" +
       escapeHtml(ev.location || "") +
       "</p></article>"
@@ -4905,12 +5101,16 @@
           '" loading="lazy" decoding="async"></div>'
         : '<div class="event-sheet-media event-sheet-media-empty" aria-hidden="true"></div>';
       var metaBits = [];
-      if (ev.date) metaBits.push("<span>" + escapeHtml(ev.date) + "</span>");
+      var whenLabel = resolveEventWhen(ev).label;
+      if (whenLabel) metaBits.push("<span>" + escapeHtml(whenLabel) + "</span>");
       if (ev.location) metaBits.push("<span>" + escapeHtml(ev.location) + "</span>");
       var desc = String(ev.description || "").trim();
       var link = safeUrl(ev.link || "");
       body.innerHTML =
         imgHtml +
+        // ===== BEGIN STUDYBUDDY_UX =====
+        eventChipsHtml(ev) +
+        // ===== END STUDYBUDDY_UX =====
         '<h3 class="event-sheet-name">' +
         escapeHtml(ev.name || "Event") +
         "</h3>" +
@@ -6601,6 +6801,38 @@
     );
   }
 
+  // ===== BEGIN STUDYBUDDY_UX (scroll reveal) =====
+  function initScrollReveal() {
+    var nodes = document.querySelectorAll("[data-reveal]");
+    if (!nodes.length) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      nodes.forEach(function (el) {
+        el.classList.add("is-revealed");
+      });
+      return;
+    }
+    if (!("IntersectionObserver" in window)) {
+      nodes.forEach(function (el) {
+        el.classList.add("is-revealed");
+      });
+      return;
+    }
+    var io = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-revealed");
+          io.unobserve(entry.target);
+        });
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -6% 0px" },
+    );
+    nodes.forEach(function (el) {
+      io.observe(el);
+    });
+  }
+  // ===== END STUDYBUDDY_UX =====
+
   function fetchContentJson() {
     return fetch(appUrl("/api/content.php"), { cache: "no-store", credentials: "same-origin" }).then(function (r) {
       if (!r.ok) throw new Error("content fetch failed");
@@ -6613,7 +6845,33 @@
       var err = document.getElementById("content-error");
       if (err) err.remove();
 
+      var cachedContent = null;
+
+      function refreshEventStatuses() {
+        if (!cachedContent) return;
+        if (page === "home") {
+          renderNextUp(cachedContent);
+        } else if (page === "events") {
+          renderEvents(cachedContent);
+          renderNextUp(cachedContent);
+        } else if (document.body.getAttribute("data-page") !== "home") {
+          renderNextUp(cachedContent);
+        }
+      }
+
+      function bindEventStatusRefresh() {
+        if (document.documentElement.getAttribute("data-event-status-refresh") === "1") {
+          return;
+        }
+        document.documentElement.setAttribute("data-event-status-refresh", "1");
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "visible") refreshEventStatuses();
+        });
+        window.setInterval(refreshEventStatuses, 60 * 60 * 1000);
+      }
+
       function hydrate(payload) {
+        cachedContent = payload;
         applyPageSeo(payload);
         fillChrome(payload);
         if (page === "home") renderHome(payload);
@@ -6625,6 +6883,10 @@
         else if (page === "gallery") renderGallery(payload);
         else if (page === "merch") renderMerch(payload);
         else if (page === "faqs") renderFaqs(payload);
+        bindEventStatusRefresh();
+        // ===== BEGIN STUDYBUDDY_UX =====
+        initScrollReveal();
+        // ===== END STUDYBUDDY_UX =====
       }
 
       if (!constructionModeOn(content)) {

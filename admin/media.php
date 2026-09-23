@@ -108,6 +108,46 @@ if ($action === 'delete') {
     ]);
 }
 
+if ($action === 'delete_many') {
+    $names = $body['names'] ?? null;
+    if (!is_array($names) || !$names) {
+        admin_json_response(['ok' => false, 'error' => 'No files selected.'], 400);
+    }
+    if (count($names) > 200) {
+        admin_json_response(['ok' => false, 'error' => 'Too many files at once (max 200).'], 400);
+    }
+    $result = media_delete_images($names);
+    $deleted = $result['deleted'] ?? [];
+    $failed = $result['failed'] ?? [];
+    if ($deleted) {
+        log_admin_action(
+            'media_deleted_bulk',
+            'Deleted ' . count($deleted) . ' upload(s)',
+            [
+                'detail' => 'Bulk deleted ' . count($deleted) . ' file(s)' .
+                    ($failed ? '; ' . count($failed) . ' failed' : ''),
+                'names' => $deleted,
+                'failedCount' => count($failed),
+            ]
+        );
+    }
+    if (!$deleted && $failed) {
+        admin_json_response([
+            'ok' => false,
+            'error' => (string) ($failed[0]['error'] ?? 'Delete failed.'),
+            'deleted' => [],
+            'failed' => $failed,
+            'deletedCount' => 0,
+        ], 400);
+    }
+    admin_json_response([
+        'ok' => true,
+        'deleted' => $deleted,
+        'failed' => $failed,
+        'deletedCount' => count($deleted),
+    ]);
+}
+
 if ($action === 'rename') {
     $result = media_rename_image((string) ($body['name'] ?? ''), (string) ($body['newName'] ?? ''));
     if (empty($result['ok'])) {
@@ -130,6 +170,61 @@ if ($action === 'rename') {
         'url' => $result['url'],
         'rewritten' => (int) ($result['rewritten'] ?? 0),
         'usageCount' => (int) ($result['usageCount'] ?? 0),
+    ]);
+}
+
+if ($action === 'retarget') {
+    $paths = $body['paths'] ?? null;
+    if ($paths !== null && !is_array($paths)) {
+        admin_json_response(['ok' => false, 'error' => 'Invalid places list.'], 400);
+    }
+    $pathList = null;
+    if (is_array($paths)) {
+        $pathList = [];
+        foreach ($paths as $p) {
+            $p = trim((string) $p);
+            if ($p !== '') {
+                $pathList[] = $p;
+            }
+        }
+    }
+    $deleteFrom = !empty($body['deleteFrom']);
+    $result = media_retarget_usages(
+        (string) ($body['from'] ?? $body['name'] ?? ''),
+        (string) ($body['to'] ?? ''),
+        $pathList,
+        $deleteFrom
+    );
+    if (empty($result['ok'])) {
+        $err = (string) ($result['error'] ?? 'Replace failed.');
+        $status = (str_contains($err, 'not found') || str_contains($err, 'not used')) ? 404 : 400;
+        admin_json_response(['ok' => false, 'error' => $err], $status);
+    }
+    log_admin_action(
+        'media_retargeted',
+        'Retargeted upload ' . ($result['from'] ?? '') . ' → ' . ($result['to'] ?? ''),
+        [
+            'detail' => 'Moved ' . (int) ($result['rewritten'] ?? 0) . ' reference(s) from ' .
+                ($result['from'] ?? '') . ' to ' . ($result['to'] ?? '') .
+                ((int) ($result['remaining'] ?? 0) > 0
+                    ? ' (' . (int) $result['remaining'] . ' left on source)'
+                    : '') .
+                (!empty($result['deleted']) ? '; deleted source file' : ''),
+            'from' => $result['from'] ?? '',
+            'to' => $result['to'] ?? '',
+            'rewritten' => (int) ($result['rewritten'] ?? 0),
+            'remaining' => (int) ($result['remaining'] ?? 0),
+            'deleted' => !empty($result['deleted']),
+        ]
+    );
+    admin_json_response([
+        'ok' => true,
+        'from' => $result['from'],
+        'to' => $result['to'],
+        'url' => $result['url'],
+        'rewritten' => (int) ($result['rewritten'] ?? 0),
+        'remaining' => (int) ($result['remaining'] ?? 0),
+        'deleted' => !empty($result['deleted']),
     ]);
 }
 

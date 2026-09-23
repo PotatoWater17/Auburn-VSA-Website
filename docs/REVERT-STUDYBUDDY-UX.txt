@@ -1,0 +1,35 @@
+Revert StudyBuddyBoard UX ports (chips / venue / scroll reveal)
+================================================================
+
+Search tag: STUDYBUDDY_UX
+
+What this port added
+--------------------
+- Event status chips: Today / This week / Past (public, from calendar day logic)
+- Venue type badge: campus | online | offcampus (CMS field venueFormat)
+- Home scroll-reveal on About / Why Join / How to join / CTA
+- CSS for .event-chip* and [data-reveal]
+
+Quick revert (code only)
+------------------------
+1. Delete every block marked BEGIN/END STUDYBUDDY_UX in:
+   - assets/js/site.js
+   - assets/css/styles.css
+   - assets/js/admin.js (venueFormat field)
+2. Remove venueFormat from includes/content.php default events
+3. Remove data-reveal (and style=--reveal-delay) from index.html home sections
+4. Remove this file and the SITE-RECREATE note for STUDYBUDDY_UX
+5. php tools/bump-assets.php --bump
+
+Git stash checkpoint (working tree before this port, includes prior
+auto event-status WIP):
+  git stash list
+  # look for: checkpoint-before-studybuddy-ux
+  git stash show -p stash@{N}
+  # To restore THAT snapshot (destructive to current WIP):
+  git checkout stash@{N} -- .
+  # or: git stash apply stash@{N}
+
+Do NOT bring over from StudyBuddyBoard
+--------------------------------------
+Next.js, Prisma/D1, DMs, buddy matching, student signup.

@@ -79,7 +79,7 @@ $logoSrc = $logo === ''
       } catch (e) {}
     })();
     </script>
-    <link rel="stylesheet" href="../assets/css/admin.css?v=20260818b">
+    <link rel="stylesheet" href="../assets/css/admin.css?v=20260923f">
     <style>.admin-login-body .admin-theme-toggle{background:var(--navy)}</style>
 </head>
 <body class="admin-login-body">

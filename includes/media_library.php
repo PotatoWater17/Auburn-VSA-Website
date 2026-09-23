@@ -363,6 +363,45 @@ function media_delete_image(string $name): array
 }
 
 /**
+ * Delete many uploads. Continues on per-file errors.
+ *
+ * @param list<string> $names
+ * @return array{ok:bool,deleted:list<string>,failed:list<array{name:string,error:string}>,deletedCount:int}
+ */
+function media_delete_images(array $names): array
+{
+    $deleted = [];
+    $failed = [];
+    $seen = [];
+    foreach ($names as $name) {
+        $safe = media_safe_basename((string) $name);
+        if ($safe === null) {
+            $failed[] = ['name' => (string) $name, 'error' => 'Invalid file name.'];
+            continue;
+        }
+        if (isset($seen[$safe])) {
+            continue;
+        }
+        $seen[$safe] = true;
+        $result = media_delete_image($safe);
+        if (!empty($result['ok'])) {
+            $deleted[] = $safe;
+        } else {
+            $failed[] = [
+                'name' => $safe,
+                'error' => (string) ($result['error'] ?? 'Delete failed.'),
+            ];
+        }
+    }
+    return [
+        'ok' => count($deleted) > 0 || count($failed) === 0,
+        'deleted' => $deleted,
+        'failed' => $failed,
+        'deletedCount' => count($deleted),
+    ];
+}
+
+/**
  * Build a safe new basename from user input, keeping the original extension.
  */
 function media_propose_basename(string $desired, string $oldName): ?string
@@ -553,6 +592,190 @@ function media_rename_image(string $oldName, string $newName): array
         'url' => UPLOADS_URL . '/' . $newSafe,
         'rewritten' => $rewritten,
         'usageCount' => $usageBefore,
+    ];
+}
+
+/**
+ * @param mixed $node
+ * @param array<string, true>|null $allowedPaths path strings → true; null = all paths
+ * @param list<string|int> $path
+ */
+function media_rewrite_refs_in_tree_at_paths(&$node, string $oldName, string $newName, ?array $allowedPaths, array $path = []): int
+{
+    $n = 0;
+    if (is_string($node)) {
+        if ($allowedPaths !== null) {
+            $key = media_path_string($path);
+            if (!isset($allowedPaths[$key])) {
+                return 0;
+            }
+        }
+        $next = media_rewrite_string_ref($node, $oldName, $newName);
+        if ($next !== $node) {
+            $node = $next;
+            return 1;
+        }
+        return 0;
+    }
+    if (!is_array($node)) {
+        return 0;
+    }
+    foreach ($node as $k => &$child) {
+        if ($k === '_meta' || $k === 'passwordHash' || $k === 'password') {
+            continue;
+        }
+        $nextPath = $path;
+        $nextPath[] = is_int($k) ? $k : (string) $k;
+        $n += media_rewrite_refs_in_tree_at_paths($child, $oldName, $newName, $allowedPaths, $nextPath);
+    }
+    unset($child);
+    return $n;
+}
+
+/**
+ * Point references from one upload to another existing upload (no disk rename).
+ * $paths null/empty = every reference. Otherwise only matching usage.path rows
+ * for live content; newsletter/schedule are included wholesale when any selected
+ * usage from that store is listed (their walk paths differ from file layout).
+ *
+ * @param list<string>|null $paths
+ * @return array{ok:bool,error?:string,from?:string,to?:string,url?:string,rewritten?:int,remaining?:int,deleted?:bool}
+ */
+function media_retarget_usages(string $fromName, string $toName, ?array $paths = null, bool $deleteFrom = false): array
+{
+    require_once __DIR__ . '/content.php';
+    require_once __DIR__ . '/publish.php';
+    require_once __DIR__ . '/security.php';
+
+    $fromSafe = media_safe_basename($fromName);
+    $toSafe = media_safe_basename($toName);
+    if ($fromSafe === null || $toSafe === null) {
+        return ['ok' => false, 'error' => 'Invalid file name.'];
+    }
+    if (strcasecmp($fromSafe, $toSafe) === 0) {
+        return ['ok' => false, 'error' => 'Pick a different image to replace with.'];
+    }
+
+    $fromPath = UPLOADS_DIR . DIRECTORY_SEPARATOR . $fromSafe;
+    $toPath = UPLOADS_DIR . DIRECTORY_SEPARATOR . $toSafe;
+    $realUploads = realpath(UPLOADS_DIR);
+    $realFrom = realpath($fromPath);
+    $realTo = realpath($toPath);
+    if ($realUploads === false || $realFrom === false || !is_file($realFrom)) {
+        return ['ok' => false, 'error' => 'Source file not found.'];
+    }
+    if ($realTo === false || !is_file($realTo)) {
+        return ['ok' => false, 'error' => 'Target file not found in the library.'];
+    }
+    $prefix = $realUploads . DIRECTORY_SEPARATOR;
+    if ((!str_starts_with($realFrom, $prefix) && $realFrom !== $realUploads)
+        || (!str_starts_with($realTo, $prefix) && $realTo !== $realUploads)) {
+        return ['ok' => false, 'error' => 'Invalid file path.'];
+    }
+
+    $index = media_usage_index();
+    $usages = $index[$fromSafe] ?? [];
+    if (!$usages) {
+        return ['ok' => false, 'error' => 'This image is not used anywhere yet.'];
+    }
+
+    $pathFilter = null;
+    $touchDrafts = true;
+    $touchSchedule = true;
+    if (is_array($paths) && count($paths) > 0) {
+        $wanted = [];
+        foreach ($paths as $p) {
+            $p = trim((string) $p);
+            if ($p !== '') {
+                $wanted[$p] = true;
+            }
+        }
+        if (!$wanted) {
+            return ['ok' => false, 'error' => 'No places selected.'];
+        }
+        $selected = [];
+        foreach ($usages as $row) {
+            $p = (string) ($row['path'] ?? '');
+            if ($p !== '' && isset($wanted[$p])) {
+                $selected[] = $row;
+            }
+        }
+        if (!$selected) {
+            return ['ok' => false, 'error' => 'None of the selected places still reference this image.'];
+        }
+        $contentPaths = [];
+        $touchDrafts = false;
+        $touchSchedule = false;
+        foreach ($selected as $row) {
+            $src = (string) ($row['source'] ?? 'content');
+            if ($src === 'newsletter-draft') {
+                $touchDrafts = true;
+            } elseif ($src === 'scheduled-publish') {
+                $touchSchedule = true;
+            } else {
+                $p = (string) ($row['path'] ?? '');
+                if ($p !== '') {
+                    $contentPaths[$p] = true;
+                }
+            }
+        }
+        $pathFilter = $contentPaths ?: [];
+        // No live-content paths selected → skip content rewrite (empty filter).
+        if (!$contentPaths) {
+            $pathFilter = [];
+        }
+    }
+
+    $rewritten = 0;
+
+    $content = publish_load_saved_content();
+    if ($pathFilter === null) {
+        $rewritten += media_rewrite_refs_in_tree($content, $fromSafe, $toSafe);
+    } elseif ($pathFilter) {
+        $rewritten += media_rewrite_refs_in_tree_at_paths($content, $fromSafe, $toSafe, $pathFilter);
+    }
+    if ($pathFilter === null || $pathFilter) {
+        if (!save_content($content)) {
+            return ['ok' => false, 'error' => 'Could not update live content references.'];
+        }
+    }
+
+    $draftFile = DATA_DIR . '/newsletter_drafts.json';
+    if ($touchDrafts && is_readable($draftFile)) {
+        $draftPayload = json_decode((string) file_get_contents($draftFile), true);
+        if (is_array($draftPayload)) {
+            $before = $rewritten;
+            $rewritten += media_rewrite_refs_in_tree($draftPayload, $fromSafe, $toSafe);
+            if ($rewritten > $before && !security_write_json($draftFile, $draftPayload)) {
+                return ['ok' => false, 'error' => 'Could not update newsletter draft references.'];
+            }
+        }
+    }
+
+    if ($touchSchedule) {
+        $queue = publish_queue_read();
+        $before = $rewritten;
+        $rewritten += media_rewrite_refs_in_tree($queue, $fromSafe, $toSafe);
+        if ($rewritten > $before && !publish_queue_write($queue)) {
+            return ['ok' => false, 'error' => 'Could not update scheduled publish references.'];
+        }
+    }
+
+    $remaining = count(media_usage_index()[$fromSafe] ?? []);
+    $deleted = false;
+    if ($deleteFrom && $remaining === 0) {
+        $del = media_delete_image($fromSafe);
+        $deleted = !empty($del['ok']);
+    }
+
+    return [
+        'ok' => true,
+        'from' => $fromSafe,
+        'to' => $toSafe,
+        'url' => UPLOADS_URL . '/' . $toSafe,
+        'rewritten' => $rewritten,
+        'remaining' => $remaining,
+        'deleted' => $deleted,
     ];
 }
 
