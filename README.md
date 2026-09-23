@@ -19,7 +19,7 @@ php -S 0.0.0.0:8000 -t .
 - Public site: `http://localhost:8000/`
 - Admin: `http://localhost:8000/admin/`
 
-Change admin passwords before any real deploy. Runtime data lives in `data/` and uploads in `uploads/` (both git-ignored).
+Change admin passwords before any real deploy. Runtime data lives in `data/` and uploads in `uploads/` (both git-ignored — **no passwords, hashes, or media files are committed**).
 
 ## Layout
 

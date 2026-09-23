@@ -8,10 +8,10 @@ define('USERS_FILE', DATA_DIR . '/users.json');
 /** Bcrypt cost for new password hashes (PASSWORD_BCRYPT). */
 define('VSA_PASSWORD_BCRYPT_COST', 12);
 
-/** Dummy bcrypt hash for timing-safe failed logins (never accepted as a real login). */
+/** Dummy bcrypt for timing-safe failed logins only — not a real account password. */
 define(
     'VSA_PASSWORD_DUMMY_HASH',
-    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'
+    '$2y$12$G4o/uIrWkSHNraKtPg1lFexySt/HHz4NjOzBVI2F.Z0oZrjd8H9nm'
 );
 
 /**

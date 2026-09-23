@@ -1,37 +1,23 @@
-# Runtime CMS content (regenerated from defaults on first run); keep data/.htaccess
-data/content.json
-data/scheduled_publish.json
-data/scheduled_publish.json.tmp
-data/newsletters.json
-data/newsletter_drafts.json
-data/newsletter_unsub_requests.json
-data/faq_inbox.json
-data/users.json
-data/users.json.tmp
-data/.admin_password_hash
-data/admin_login_attempts.json
-data/admin_login_attempts.json.tmp
-data/public_api_rate.json
-data/public_api_rate.json.tmp
-data/construction_messages.json
-data/construction_messages.json.tmp
-data/blocked_ips.json
-data/blocked_ips.json.tmp
-data/construction_rate.json
-data/construction_rate.json.tmp
-data/activity_log.json
-data/activity_log.json.tmp
-data/error_log.json
-data/error_log.json.tmp
-data/uptime.json
-data/uptime.json.tmp
-data/construction_login_attempts.json
-data/construction_login_attempts.json.tmp
-data/mail/*.json
-data/mail/*.json.tmp
-data/.mail_inbound_secret
+# Runtime CMS data — keep folder markers only (never commit JSON / hashes / secrets)
+data/**
+!data/.gitkeep
+!data/.htaccess
+!data/mail/
+data/mail/**
+!data/mail/.gitkeep
+!data/mail/.htaccess
 
-# Uploaded images (runtime) — keep the folder, ignore its contents
+# Never commit credentials / password material (belt-and-suspenders)
+**/.admin_password_hash
+**/users.json
+**/.mail_inbound_secret
+**/.env
+**/.env.*
+!**/.env.example
+**/.dev.vars
+**/credentials.json
+
+# Uploaded media (runtime) — keep folder markers only
 uploads/*
 !uploads/.gitkeep
 !uploads/.htaccess
